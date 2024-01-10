@@ -11,6 +11,7 @@ public class ExperimentController : MonoBehaviour
     [Header("Trial Info")]
     public GameObject virtualCube;
     public GameObject physicalCylinder;
+    public Transform targetTransform;
     public GameObject arrow;
     public int trialNum = 0; // 0-3, 4 trials: 2 targets times 2 self-rotations
     public int blockNum = 0; // 0-7, 8 blocks
@@ -22,30 +23,178 @@ public class ExperimentController : MonoBehaviour
     public SelfRotation currentRotation;
     public enum Targets {virtualTarget = 0, physicalTarget = 1};
     public Targets currentTarget;
+    public GameObject rectify;
+    public GameObject virtualRectify;
+    public GameObject physicalRectify;
+    public GameObject laser;
+    private Transform laserTransform;
      
     // public GameObject uiPanel;
     // public GameObject startButton;
     // public Logger logger;
     public FadeEffect fadeEffect;
     public GameObject cam;
+    public Vector3 hitPoint;
 
 
     bool isTrialRunning;
     bool isBaselineMeasure;
-   
+    bool isTestingMeasure;
+    float beginTimeStamp;
+    float endTimeStamp;
+    Ray ray;
+    RaycastHit hit;
+    float rad = 55.0f * Mathf.Deg2Rad; // Degrees-to-radians conversion constant (Read Only). This is equal to (PI * 2) / 360.
+
     void Start()
     {
-        // setting for the study
+        
         fadeEffect = this.GetComponent<FadeEffect>();
         fadeEffect.fadeInEffect();
-        virtualCube.SetActive(false);
-        physicalCylinder.SetActive(false);
-        arrow.SetActive(false);
         conditionArray = new List<int> {0, 1, 2, 3};
+        laserTransform = laser.transform;
 
         // initialize the first block
-        // Helpers.Shuffle(conditionArray);
+        InitializeVirtualCubePos();
+        Helpers.Shuffle(conditionArray);
+        PrepareTrial();
 
+        virtualCube.SetActive(false);
+        physicalCylinder.SetActive(false);
+        rectify.SetActive(false);
+        virtualRectify.SetActive(false);
+        physicalRectify.SetActive(false);
+        laser.SetActive(false);
+    }
+
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Q)) InitializeVirtualCubePos();
+        // if (Input.GetKeyDown(KeyCode.W)) this.transform.rotation = Quaternion.Euler(0, 120, 0);
+
+
+        if (Input.GetKeyDown(KeyCode.Space)) 
+        {
+            // replace this part with 3D UI
+            isTrialRunning = true;
+            StartCoroutine(ShowTargetAndRetention());
+        }
+
+
+
+        if (blockNum < 8)
+        {
+            if (trialNum < 4)
+            {
+                if (isTrialRunning)
+                {
+                    currentTime += Time.deltaTime; // keep tracking time for each trial
+
+                    if (isBaselineMeasure)
+                    {
+                        ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                        if (Physics.Raycast(ray, out hit, 100))
+                        {
+                            hitPoint = hit.point;
+                            Vector3 vec = hitPoint - cam.transform.position;
+                            // Debug.DrawRay(cam.transform.position, vec, Color.green, 0.02f); // for debug
+                            rectify.transform.position = hitPoint;
+                            UpdateLaser();
+
+                            // press button to confirm the respond
+                            if (Input.GetMouseButtonDown(0))
+                            {
+                                endTimeStamp = currentTime;
+                                // record baseline measure (two time stamps, target position, selected position)
+                                Debug.LogWarning("Block: " +           blockNum                                + ", " +
+                                                "Trial: " +            trialNum                                + ", " +
+                                                "Self-Rotation: " +    currentRotation.ToString()              + ", " +
+                                                "TargetType: " +       currentTarget.ToString()                + ", " +
+                                                "Baseline: " +         isBaselineMeasure                       + ", " +
+                                                "BeginTime: " +        beginTimeStamp.ToString("F6")           + ", " +
+                                                "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
+                                                "TargetPos: " +        targetTransform.position.ToString("F6") + ", " +
+                                                "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
+                                                "ControllerPos: " +    cam.transform.position.ToString("F6")   + ", "); // change to controller
+                                // reset variables
+                                isBaselineMeasure = false;
+                                laser.SetActive(false);
+                                rectify.SetActive(false);
+                                // show arrow
+                                StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f));
+                            }
+                        }
+                    }
+                    
+                    if (isTestingMeasure)
+                    {
+                        ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                        if (Physics.Raycast(ray, out hit, 100))
+                        {
+                            hitPoint = hit.point;
+                            Vector3 vec = hitPoint - cam.transform.position;
+                            // Debug.DrawRay(cam.transform.position, vec, Color.green, 0.02f); // for debug
+                            rectify.transform.position = hitPoint;
+                            UpdateLaser();
+
+                            // press button to confirm the respond
+                            if (Input.GetMouseButtonDown(0))
+                            {
+                                endTimeStamp = currentTime;
+                                // record baseline measure (two time stamps, target position, selected position)
+                                Debug.LogWarning("Block: " +           blockNum                                + ", " +
+                                                "Trial: " +            trialNum                                + ", " +
+                                                "Self-Rotation: " +    currentRotation.ToString()              + ", " +
+                                                "TargetType: " +       currentTarget.ToString()                + ", " +
+                                                "Baseline: " +         isBaselineMeasure                       + ", " +
+                                                "BeginTime: " +        beginTimeStamp.ToString("F6")           + ", " +
+                                                "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
+                                                "TargetPos: " +        targetTransform.position.ToString("F6") + ", " +
+                                                "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
+                                                "ControllerPos: " +    cam.transform.position.ToString("F6")   + ", "); // change to controller
+                                // reset variables
+                                isTestingMeasure = false;
+                                laser.SetActive(false);
+                                rectify.SetActive(false);
+                                this.transform.rotation = Quaternion.Euler(0, 0, 0);
+                                arrow.SetActive(true);
+                                isTrialRunning = false;
+                                if (trialNum < 3) 
+                                {
+                                    trialNum += 1;
+                                }
+                                else
+                                {
+                                    trialNum = 0;
+                                    blockNum += 1;
+                                    Helpers.Shuffle(conditionArray);
+                                }
+                                InitializeVirtualCubePos();
+                                PrepareTrial();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            Debug.LogWarning("The end of the study");
+        }
+    }
+
+    public void InitializeVirtualCubePos()
+    {
+        virtualCube.SetActive(true);
+        float z = Random.Range(1.0f, 3.0f);
+        float x_half = z * Mathf.Tan(rad);
+        float x = Random.Range(-x_half, x_half);
+        virtualCube.transform.position = new Vector3(x, 0.05f, z);
+        virtualCube.SetActive(false);
+    }
+
+    public void PrepareTrial()
+    {
         if (conditionArray[trialNum] == 0) 
         {
             currentCondition = Conditions.virtualStatic;
@@ -70,66 +219,42 @@ public class ExperimentController : MonoBehaviour
             currentRotation = SelfRotation.rotate;
             currentTarget = Targets.physicalTarget;
         }
-
-
     }
 
-    void Update()
+    public IEnumerator ShowRotateOrientation(float _showTimeStamp)
     {
-        // testing
-        if (Input.GetKeyDown(KeyCode.Q)) fadeEffect.fadeInEffect();
-        if (Input.GetKeyDown(KeyCode.W)) fadeEffect.fadeInBlackEffect(); 
-
-
-        // fixedupdate?
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, 100))
+        if (currentRotation == SelfRotation.none)
         {
-            Vector3 vec = hit.point - cam.transform.position;
-            Debug.DrawRay(cam.transform.position, vec, Color.red, 0.02f);
-
+            this.transform.rotation = Quaternion.Euler(0, 0, 0);
         }
-
-
-
-
-
-
-        // keep tracking time for each trial
-        if (isTrialRunning)
+        else
         {
-            currentTime += Time.deltaTime;
+            this.transform.rotation = Quaternion.Euler(0, 120, 0);
         }
-
-        if (Input.GetKeyDown(KeyCode.Space)) 
+        arrow.SetActive(true);
+        yield return new WaitUntil(() => currentTime > _showTimeStamp);
+        // prepare for the pointing task
+        arrow.SetActive(false);
+        rectify.SetActive(true);
+        if (currentTarget == Targets.virtualTarget)
         {
-            isTrialRunning = true;
-            StartCoroutine(ShowTargetAndRetention());
+            virtualRectify.SetActive(true);
         }
-
-
-        // this is for one block
-        if (trialNum < 4)
+        else
         {
-            // this is for one trial
-            
-            if (isBaselineMeasure)
-            {
-
-
-                // keep updating retify and raycast
-                // record baseline measure (two time stamps, target position, selected position)
-                // showOrientation procedure
-            }
-
-
+            physicalRectify.SetActive(true);
         }
-        
+        laser.SetActive(true);
+        isTestingMeasure = true;
+        beginTimeStamp = currentTime;
+        yield return 0;
     }
+
 
     public IEnumerator ShowTargetAndRetention(float _showTimeStamp = 5.0f, float _retentionTimeStamp = 10.0f)
 	{
+        currentTime = 0.0f;
+        arrow.SetActive(false);
         // show a target
         if (currentTarget == Targets.virtualTarget)
         {
@@ -138,14 +263,16 @@ public class ExperimentController : MonoBehaviour
             // TODO
             // instantiate object position
             //////////////////////////////
+            targetTransform = virtualCube.transform;
         }
         else 
         {
             physicalCylinder.SetActive(true);
             //////////////////////////////
             // TODO
-            // instantiate object position
+            // instantiate object position if needed
             //////////////////////////////
+            targetTransform = physicalCylinder.transform;
         } 
         yield return new WaitUntil(() => currentTime > _showTimeStamp);
         // retention starts
@@ -153,16 +280,29 @@ public class ExperimentController : MonoBehaviour
         else physicalCylinder.SetActive(false);
         fadeEffect.fadeInBlackEffect();
         yield return new WaitUntil(() => currentTime > _retentionTimeStamp);
-        // prepare for the baseline measure
+        // prepare for the pointing task
         fadeEffect.fadeInEffect();
-        //////////////////////////////
-        // TODO
-        // Initiate retify and raycast
-        //////////////////////////////
+        rectify.SetActive(true);
+        if (currentTarget == Targets.virtualTarget)
+        {
+            virtualRectify.SetActive(true);
+        }
+        else
+        {
+            physicalRectify.SetActive(true);
+        }
+        laser.SetActive(true);
         isBaselineMeasure = true;
+        beginTimeStamp = currentTime;
         yield return 0;
     }
 
+    private void UpdateLaser()
+    {
+        laserTransform.position = Vector3.Lerp(cam.transform.position, hitPoint, .5f); // move laser to the middle
+        laserTransform.LookAt(hitPoint); // rotate and face the hit point
+        laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(cam.transform.position, hitPoint));
+    }
 
 
     // public void StartCondition()
