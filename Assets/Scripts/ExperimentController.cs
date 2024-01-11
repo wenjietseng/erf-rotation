@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Oculus.Interaction.Locomotion;
+using Unity.VisualScripting;
 
 public class ExperimentController : MonoBehaviour
 {
@@ -23,20 +25,26 @@ public class ExperimentController : MonoBehaviour
     public SelfRotation currentRotation;
     public enum Targets {virtualTarget = 0, physicalTarget = 1};
     public Targets currentTarget;
+    public GameObject StartTrialPanel;
+
+    [Header("Pointing")]
+    public GameObject controller; 
+    public LayerMask pointingMask;
     public GameObject rectify;
     public GameObject virtualRectify;
     public GameObject physicalRectify;
     public GameObject laser;
     private Transform laserTransform;
+    public Vector3 hitPoint;
      
     // public GameObject uiPanel;
     // public GameObject startButton;
     // public Logger logger;
+    [Header("Environment")]
     public FadeEffect fadeEffect;
-    public GameObject cam;
-    public Vector3 hitPoint;
-
-
+    public OVRPassthroughLayer passthroughLayer;
+    // private variables
+    public static bool isStartTrialPanelTriggered;
     bool isTrialRunning;
     bool isBaselineMeasure;
     bool isTestingMeasure;
@@ -45,10 +53,14 @@ public class ExperimentController : MonoBehaviour
     Ray ray;
     RaycastHit hit;
     float rad = 55.0f * Mathf.Deg2Rad; // Degrees-to-radians conversion constant (Read Only). This is equal to (PI * 2) / 360.
+    bool fadeInRW;
+    bool fadeInVR;
+    float lerpTimeElapsed = 0;
+    float lerpDuration = 2;
 
     void Start()
     {
-        
+        passthroughLayer.enabled = false;
         fadeEffect = this.GetComponent<FadeEffect>();
         fadeEffect.fadeInEffect();
         conditionArray = new List<int> {0, 1, 2, 3};
@@ -69,15 +81,54 @@ public class ExperimentController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Q)) InitializeVirtualCubePos();
-        // if (Input.GetKeyDown(KeyCode.W)) this.transform.rotation = Quaternion.Euler(0, 120, 0);
+
+
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            fadeEffect.fadeInBlackEffect();
+        }
+        if (Input.GetKeyDown(KeyCode.W)) fadeEffect.fadeInEffect();
+
+        if (fadeInRW)
+        {
+            if (lerpTimeElapsed < lerpDuration)
+            {
+                passthroughLayer.textureOpacity = Mathf.Lerp(0, 1,  lerpTimeElapsed / lerpDuration);
+                lerpTimeElapsed += Time.deltaTime;
+            }
+            else
+            {
+                fadeInRW = false;
+            }
+        }
+
+        if (fadeInVR)
+        {
+            if (lerpTimeElapsed < lerpDuration)
+            {
+                passthroughLayer.textureOpacity = Mathf.Lerp(1, 0,  lerpTimeElapsed / lerpDuration);
+                lerpTimeElapsed += Time.deltaTime;
+            }
+            else
+            {
+                fadeInVR = false;
+                passthroughLayer.enabled = false;
+            }
+        }
 
 
         if (Input.GetKeyDown(KeyCode.Space)) 
         {
-            // replace this part with 3D UI
+            // For PC debugging
             isTrialRunning = true;
             StartCoroutine(ShowTargetAndRetention());
+        }
+
+        if (isStartTrialPanelTriggered)
+        {
+            isTrialRunning = true;
+            StartCoroutine(ShowTargetAndRetention());
+            isStartTrialPanelTriggered = false;
         }
 
 
@@ -92,17 +143,12 @@ public class ExperimentController : MonoBehaviour
 
                     if (isBaselineMeasure)
                     {
-                        ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                        if (Physics.Raycast(ray, out hit, 100))
+                        if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
                         {
                             hitPoint = hit.point;
-                            Vector3 vec = hitPoint - cam.transform.position;
-                            // Debug.DrawRay(cam.transform.position, vec, Color.green, 0.02f); // for debug
-                            rectify.transform.position = hitPoint;
-                            UpdateLaser();
-
-                            // press button to confirm the respond
-                            if (Input.GetMouseButtonDown(0))
+                            UpdateLaser(hitPoint);          
+                        
+                            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
                             {
                                 endTimeStamp = currentTime;
                                 // record baseline measure (two time stamps, target position, selected position)
@@ -115,7 +161,7 @@ public class ExperimentController : MonoBehaviour
                                                 "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
                                                 "TargetPos: " +        targetTransform.position.ToString("F6") + ", " +
                                                 "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
-                                                "ControllerPos: " +    cam.transform.position.ToString("F6")   + ", "); // change to controller
+                                                "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); // change to controller
                                 // reset variables
                                 isBaselineMeasure = false;
                                 laser.SetActive(false);
@@ -124,21 +170,21 @@ public class ExperimentController : MonoBehaviour
                                 StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f));
                             }
                         }
+                        else
+                        {
+                            laser.SetActive(false);
+                            rectify.SetActive(false);
+                        }
                     }
-                    
+
                     if (isTestingMeasure)
                     {
-                        ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                        if (Physics.Raycast(ray, out hit, 100))
+                        if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
                         {
                             hitPoint = hit.point;
-                            Vector3 vec = hitPoint - cam.transform.position;
-                            // Debug.DrawRay(cam.transform.position, vec, Color.green, 0.02f); // for debug
-                            rectify.transform.position = hitPoint;
-                            UpdateLaser();
+                            UpdateLaser(hitPoint);
 
-                            // press button to confirm the respond
-                            if (Input.GetMouseButtonDown(0))
+                            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
                             {
                                 endTimeStamp = currentTime;
                                 // record baseline measure (two time stamps, target position, selected position)
@@ -151,7 +197,7 @@ public class ExperimentController : MonoBehaviour
                                                 "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
                                                 "TargetPos: " +        targetTransform.position.ToString("F6") + ", " +
                                                 "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
-                                                "ControllerPos: " +    cam.transform.position.ToString("F6")   + ", "); // change to controller
+                                                "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); // change to controller
                                 // reset variables
                                 isTestingMeasure = false;
                                 laser.SetActive(false);
@@ -170,9 +216,19 @@ public class ExperimentController : MonoBehaviour
                                     Helpers.Shuffle(conditionArray);
                                 }
                                 InitializeVirtualCubePos();
+                                //////////////////////////////
+                                // TODO
+                                // instantiate object position if needed
+                                //////////////////////////////
                                 PrepareTrial();
+                                StartTrialPanel.SetActive(true);
                             }
-                        }
+                        }   
+                        else
+                        {
+                            laser.SetActive(false);
+                            rectify.SetActive(false);
+                        }        
                     }
                 }
             }
@@ -239,9 +295,11 @@ public class ExperimentController : MonoBehaviour
         if (currentTarget == Targets.virtualTarget)
         {
             virtualRectify.SetActive(true);
+            physicalRectify.SetActive(false);
         }
         else
         {
+            virtualRectify.SetActive(false);
             physicalRectify.SetActive(true);
         }
         laser.SetActive(true);
@@ -250,34 +308,38 @@ public class ExperimentController : MonoBehaviour
         yield return 0;
     }
 
-
     public IEnumerator ShowTargetAndRetention(float _showTimeStamp = 5.0f, float _retentionTimeStamp = 10.0f)
 	{
         currentTime = 0.0f;
         arrow.SetActive(false);
+        StartTrialPanel.SetActive(false);
         // show a target
         if (currentTarget == Targets.virtualTarget)
         {
             virtualCube.SetActive(true);
-            //////////////////////////////
-            // TODO
-            // instantiate object position
-            //////////////////////////////
             targetTransform = virtualCube.transform;
         }
         else 
         {
             physicalCylinder.SetActive(true);
-            //////////////////////////////
-            // TODO
-            // instantiate object position if needed
-            //////////////////////////////
             targetTransform = physicalCylinder.transform;
+            // show real-world using passthrough
+            passthroughLayer.enabled = true;
+            lerpTimeElapsed = 0;
+            fadeInRW = true;
         } 
         yield return new WaitUntil(() => currentTime > _showTimeStamp);
         // retention starts
-        if (currentTarget == Targets.virtualTarget) virtualCube.SetActive(false);
-        else physicalCylinder.SetActive(false);
+        if (currentTarget == Targets.virtualTarget)
+        {
+            virtualCube.SetActive(false);
+        }
+        else
+        {
+            physicalCylinder.SetActive(false);
+            lerpTimeElapsed = 0;
+            fadeInVR = true;
+        }
         fadeEffect.fadeInBlackEffect();
         yield return new WaitUntil(() => currentTime > _retentionTimeStamp);
         // prepare for the pointing task
@@ -286,9 +348,11 @@ public class ExperimentController : MonoBehaviour
         if (currentTarget == Targets.virtualTarget)
         {
             virtualRectify.SetActive(true);
+            physicalRectify.SetActive(false);
         }
         else
         {
+            virtualRectify.SetActive(false);
             physicalRectify.SetActive(true);
         }
         laser.SetActive(true);
@@ -297,21 +361,15 @@ public class ExperimentController : MonoBehaviour
         yield return 0;
     }
 
-    private void UpdateLaser()
+    private void UpdateLaser(Vector3 hitPoint)
     {
-        laserTransform.position = Vector3.Lerp(cam.transform.position, hitPoint, .5f); // move laser to the middle
+        laser.SetActive(true);
+        rectify.SetActive(true);
+        rectify.transform.position = hitPoint;
+        laserTransform.position = Vector3.Lerp(controller.transform.position, hitPoint, .5f); // move laser to the middle
         laserTransform.LookAt(hitPoint); // rotate and face the hit point
-        laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(cam.transform.position, hitPoint));
+        laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(controller.transform.position, hitPoint));
     }
-
-
-    // public void StartCondition()
-    // {
-    //     // logger.LogWarning("Condition starts");
-    //     // startButton.SetActive(false);
-    //     // uiPanel.SetActive(false);
-        
-    // }
 }
 
 public static class Helpers
