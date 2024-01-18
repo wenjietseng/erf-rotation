@@ -5,11 +5,15 @@ using UnityEngine.UI;
 using TMPro;
 using Oculus.Interaction.Locomotion;
 using Unity.VisualScripting;
+using DataFileIO;
 
 public class ExperimentController : MonoBehaviour
 {
     [Header("User Info")]
     public int participantID = 0;
+    WriteFile dataFile; 
+
+
     [Header("Trial Info")]
     public GameObject virtualCube;
     public GameObject physicalCylinder;
@@ -40,11 +44,12 @@ public class ExperimentController : MonoBehaviour
     // public GameObject uiPanel;
     // public GameObject startButton;
     // public Logger logger;
-    [Header("Environment")]
+    [Header("Environment and UI")]
     public FadeEffect fadeEffect;
     public OVRPassthroughLayer passthroughLayer;
     // private variables
     public static bool isStartTrialPanelTriggered;
+    public TMP_Text startTrialPanelText;
     bool isTrialRunning;
     bool isBaselineMeasure;
     bool isTestingMeasure;
@@ -57,14 +62,26 @@ public class ExperimentController : MonoBehaviour
     bool fadeInVR;
     float lerpTimeElapsed = 0;
     float lerpDuration = 2;
+    float restingTime = 0;
+    float restingInterval = 5;
 
     void Start()
     {
+        // Data file
+        dataFile = new WriteFile();
+        
+
+
+
+
+
         passthroughLayer.enabled = false;
         fadeEffect = this.GetComponent<FadeEffect>();
         fadeEffect.fadeInEffect();
         conditionArray = new List<int> {0, 1, 2, 3};
         laserTransform = laser.transform;
+        restingTime = 5.1f;
+        startTrialPanelText.text = "Start Trial";
 
         // initialize the first block
         InitializeVirtualCubePos();
@@ -152,7 +169,8 @@ public class ExperimentController : MonoBehaviour
                             {
                                 endTimeStamp = currentTime;
                                 // record baseline measure (two time stamps, target position, selected position)
-                                Debug.LogWarning("Block: " +           blockNum                                + ", " +
+                                Debug.LogWarning("Participant: P" +    participantID.ToString()                + ", " +
+                                                "Block: " +            blockNum                                + ", " +
                                                 "Trial: " +            trialNum                                + ", " +
                                                 "Self-Rotation: " +    currentRotation.ToString()              + ", " +
                                                 "TargetType: " +       currentTarget.ToString()                + ", " +
@@ -164,16 +182,17 @@ public class ExperimentController : MonoBehaviour
                                                 "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); // change to controller
                                 // reset variables
                                 isBaselineMeasure = false;
-                                laser.SetActive(false);
-                                rectify.SetActive(false);
+
+
+                                DisableLaser();
+                                
                                 // show arrow
                                 StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f));
                             }
                         }
                         else
                         {
-                            laser.SetActive(false);
-                            rectify.SetActive(false);
+                            DisableLaser();
                         }
                     }
 
@@ -188,7 +207,8 @@ public class ExperimentController : MonoBehaviour
                             {
                                 endTimeStamp = currentTime;
                                 // record baseline measure (two time stamps, target position, selected position)
-                                Debug.LogWarning("Block: " +           blockNum                                + ", " +
+                                Debug.LogWarning("Participant: P" +    participantID.ToString()                + ", " +
+                                                "Block: " +            blockNum                                + ", " +
                                                 "Trial: " +            trialNum                                + ", " +
                                                 "Self-Rotation: " +    currentRotation.ToString()              + ", " +
                                                 "TargetType: " +       currentTarget.ToString()                + ", " +
@@ -200,11 +220,14 @@ public class ExperimentController : MonoBehaviour
                                                 "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); // change to controller
                                 // reset variables
                                 isTestingMeasure = false;
-                                laser.SetActive(false);
-                                rectify.SetActive(false);
+
+                                DisableLaser();
+                                
                                 this.transform.rotation = Quaternion.Euler(0, 0, 0);
                                 arrow.SetActive(true);
                                 isTrialRunning = false;
+                                restingTime = 0;
+
                                 if (trialNum < 3) 
                                 {
                                     trialNum += 1;
@@ -226,9 +249,24 @@ public class ExperimentController : MonoBehaviour
                         }   
                         else
                         {
-                            laser.SetActive(false);
-                            rectify.SetActive(false);
+                            DisableLaser();
                         }        
+                    }
+                }
+                else
+                {
+                    if (StartTrialPanel.activeSelf)
+                    {
+                        // wait for 5 seconds and show the next trial
+                        restingTime += Time.deltaTime;
+                        if (restingTime < restingInterval)
+                        {
+                            startTrialPanelText.text = (5.4 - restingTime).ToString("F0");
+                        }
+                        else
+                        {
+                            startTrialPanelText.text = "Start Trial";
+                        }
                     }
                 }
             }
@@ -361,6 +399,15 @@ public class ExperimentController : MonoBehaviour
         yield return 0;
     }
 
+    void DisableLaser()
+    {
+        // make sure they won't be visible directly when displaying 
+        if (rectify.activeSelf) rectify.transform.position = Vector3.zero;
+        if (laser.activeSelf) laser.transform.position = Vector3.zero;
+        laser.SetActive(false);
+        rectify.SetActive(false);
+    }
+
     private void UpdateLaser(Vector3 hitPoint)
     {
         laser.SetActive(true);
@@ -369,6 +416,37 @@ public class ExperimentController : MonoBehaviour
         laserTransform.position = Vector3.Lerp(controller.transform.position, hitPoint, .5f); // move laser to the middle
         laserTransform.LookAt(hitPoint); // rotate and face the hit point
         laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(controller.transform.position, hitPoint));
+    }
+
+    public struct TrialData
+    {
+        public string particiapntID;
+        public int blockNum;
+        public int trialNum;
+        public string currentRotation;
+        public string currentTarget;
+        public bool isBaselineMeasure;
+        public float beginTime;
+        public float endTime;
+        public Vector3 targetPos;
+        public Vector3 selectedPos;
+        public Vector3 controllerPos;
+
+        public TrialData(string particiapntID, int blockNum, int trialNum, string currentRotation, string currentTarget, bool isBaselineMeasure,
+                         float beginTime, float endTime, Vector3 targetPos, Vector3 selectedPos, Vector3 controllerPos)
+        {
+            this.particiapntID = particiapntID;
+            this.blockNum = blockNum; 
+            this.trialNum = trialNum;
+            this.currentRotation = currentRotation;
+            this.currentTarget = currentTarget;
+            this.isBaselineMeasure = isBaselineMeasure; 
+            this.beginTime = beginTime;
+            this.endTime = endTime;
+            this.targetPos = targetPos;
+            this.selectedPos = selectedPos;
+            this.controllerPos = controllerPos;
+        }
     }
 }
 
