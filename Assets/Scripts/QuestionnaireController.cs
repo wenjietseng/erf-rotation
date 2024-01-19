@@ -32,6 +32,7 @@ public class QuestionnaireController : MonoBehaviour
     private string pa02 = "I had the impression that I could be active in the environment of the presentation.";
     private string pa05 = "I felt like I could move around among the objects in the presentation.";
     private string pa08 = "It seemed to me that I could do whatever I wanted in the environment of the presentation.";
+    private bool isStart;
 
     void Start()
     {
@@ -55,14 +56,57 @@ public class QuestionnaireController : MonoBehaviour
     {
         if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
         {
+            
+                Debug.LogWarning(hit.transform.name + ",,,,");
             hitPoint = hit.point;
-            Debug.LogWarning(hit.transform.name);
-            mainText.text = hit.transform.name;
-
             laser.SetActive(true);
             laserTransform.position = Vector3.Lerp(controller.transform.position, hitPoint, .5f); // move laser to the middle
             laserTransform.LookAt(hitPoint); // rotate and face the hit point
             laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(controller.transform.position, hitPoint));
+
+            if (hit.transform.tag == "QuestionnaireButton")
+            {
+                Debug.LogWarning("1");
+                hit.transform.GetComponent<Image>().color = Color.yellow;
+            }
+            else 
+            {
+                                Debug.LogWarning("2");
+                if (startButton.enabled) startButton.GetComponent<Image>().color = Color.white;
+                if (confirmButton.enabled) confirmButton.GetComponent<Image>().color = Color.white;
+            }
+
+            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
+            {
+                                Debug.LogWarning("3");
+                Debug.LogWarning(hit.transform.name);
+                mainText.text = hit.transform.name;
+                if (hit.transform.tag == "QuestionnaireButton")
+                {
+                    if (hit.transform.name == startButton.name && !isStart)
+                    {
+                                        Debug.LogWarning("4");
+                        isStart = true;
+                        startButton.enabled = false;
+                        mainText.text = items[0];
+                        scale.SetActive(true);
+                        confirmButton.enabled = true;
+                    }
+                    else if (hit.transform.name == confirmButton.name)
+                    {
+
+                    }
+
+                }
+                else if (hit.transform.tag == "QuestionnaireScale")
+                {
+
+                }
+
+                
+
+            }
+
         }
         else
         {
