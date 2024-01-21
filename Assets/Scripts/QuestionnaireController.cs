@@ -5,41 +5,54 @@ using TMPro;
 using UnityEngine.UI;
 using Meta.WitAi.Attributes;
 using Unity.VisualScripting.ReorderableList;
+using System.IO;
 
 public class QuestionnaireController : MonoBehaviour
 {
     public int participantID;
     public TMP_Text mainText;
+    public TMP_Text smallInstruction;
+    public TMP_Text largeInstruction;
     public GameObject scale;
-    public Button startButton;
-    public Button confirmButton;
     public GameObject controller; 
-    public LayerMask pointingMask;
-    public List<string> items;
-    public GameObject laser;
-
-
-
-    private RaycastHit hit;
-    private Vector3 hitPoint;
-    private Transform laserTransform;
+    public List<GameObject> scales;
+    public List<int> responses;
+    private List<QuestionnaireData> items = new List<QuestionnaireData>();
     // SPES: All items were designed to be answered on a 5-point Likert scale ranging from 1 (= I do not agree at all) to 5 (= I fully agree).
-    private string sl01 = "I felt like I was actually there in the environment of the presentation.";
-    private string sl02 = "It seemed as though I actually took part in the action of the presentation.";
-    private string sl03 = "It was as though my true location had shifted into the environment in the presentation.";
-    private string sl04 = "I felt as though I was physically present in the environment of the presentation.";
-    private string pa01 = "The objects in the presentation gave me the feeling that I could do things with them.";
-    private string pa02 = "I had the impression that I could be active in the environment of the presentation.";
-    private string pa05 = "I felt like I could move around among the objects in the presentation.";
-    private string pa08 = "It seemed to me that I could do whatever I wanted in the environment of the presentation.";
+    private QuestionnaireData sl01;
+    private QuestionnaireData sl02;
+    private QuestionnaireData sl03;
+    private QuestionnaireData sl04;
+    private QuestionnaireData pa01;
+    private QuestionnaireData pa02;
+    private QuestionnaireData pa05;
+    private QuestionnaireData pa08;
+    private GameObject currentScaleGO;
     private bool isStart;
+    private bool isAllowedCheck;
+    private bool isEnd;
+    private int currentScale;
+    public int currentItem;
+    private StreamWriter questionnaireWriter;
 
     void Start()
     {
+        // get this part on Windows and Quest again...
+        string questionnairePath = Application.dataPath + "/Data/" + "P" + participantID.ToString("F0") + "_questionnaire.csv";
+        questionnaireWriter = new StreamWriter(questionnairePath, true);
+
+
+
+        isStart = false;
         scale.SetActive(false);
-        laser.SetActive(false);
-        confirmButton.enabled = false;
-        laserTransform = laser.transform;
+        sl01 = new QuestionnaireData("P" + participantID.ToString(), "I felt like I was actually there in the environment of the presentation.");
+        sl02 = new QuestionnaireData("P" + participantID.ToString(), "It seemed as though I actually took part in the action of the presentation.");
+        sl03 = new QuestionnaireData("P" + participantID.ToString(), "It was as though my true location had shifted into the environment in the presentation.");
+        sl04 = new QuestionnaireData("P" + participantID.ToString(), "I felt as though I was physically present in the environment of the presentation.");
+        pa01 = new QuestionnaireData("P" + participantID.ToString(), "The objects in the presentation gave me the feeling that I could do things with them.");
+        pa02 = new QuestionnaireData("P" + participantID.ToString(), "I had the impression that I could be active in the environment of the presentation.");
+        pa05 = new QuestionnaireData("P" + participantID.ToString(), "I felt like I could move around among the objects in the presentation.");
+        pa08 = new QuestionnaireData("P" + participantID.ToString(), "It seemed to me that I could do whatever I wanted in the environment of the presentation.");
         items.Add(sl01);
         items.Add(sl02);
         items.Add(sl03);
@@ -48,72 +61,166 @@ public class QuestionnaireController : MonoBehaviour
         items.Add(pa02);
         items.Add(pa05);
         items.Add(pa08);
+        responses = new List<int>{0, 0, 0, 0, 0, 0, 0, 0};
         Helpers.Shuffle(items);
+        currentItem = 0;
+        currentScale = 3;
+        currentScaleGO = scales[(currentScale-1)];
+        smallInstruction.text = "";
+        largeInstruction.text = "Press A to Start.";
+        isAllowedCheck = false;
+        
+        foreach (var s in scales) s.SetActive(false);
 
     }
 
     void Update()
     {
-        if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+        if (!isStart)
         {
-            
-                Debug.LogWarning(hit.transform.name + ",,,,");
-            hitPoint = hit.point;
-            laser.SetActive(true);
-            laserTransform.position = Vector3.Lerp(controller.transform.position, hitPoint, .5f); // move laser to the middle
-            laserTransform.LookAt(hitPoint); // rotate and face the hit point
-            laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(controller.transform.position, hitPoint));
-
-            if (hit.transform.tag == "QuestionnaireButton")
+            if (Input.GetKeyDown(KeyCode.A))
             {
-                Debug.LogWarning("1");
-                hit.transform.GetComponent<Image>().color = Color.yellow;
-            }
-            else 
-            {
-                                Debug.LogWarning("2");
-                if (startButton.enabled) startButton.GetComponent<Image>().color = Color.white;
-                if (confirmButton.enabled) confirmButton.GetComponent<Image>().color = Color.white;
-            }
-
-            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
-            {
-                                Debug.LogWarning("3");
-                Debug.LogWarning(hit.transform.name);
-                mainText.text = hit.transform.name;
-                if (hit.transform.tag == "QuestionnaireButton")
+                if (!isEnd)
                 {
-                    if (hit.transform.name == startButton.name && !isStart)
-                    {
-                                        Debug.LogWarning("4");
-                        isStart = true;
-                        startButton.enabled = false;
-                        mainText.text = items[0];
-                        scale.SetActive(true);
-                        confirmButton.enabled = true;
-                    }
-                    else if (hit.transform.name == confirmButton.name)
-                    {
-
-                    }
-
+                    isStart = true;
+                    mainText.text = items[currentItem].item;
+                    scale.SetActive(true);
+                    currentScaleGO.SetActive(true);
+                    largeInstruction.text = "Use Left/Right to select a response and press A to confrim.";
                 }
-                else if (hit.transform.tag == "QuestionnaireScale")
-                {
-
-                }
-
-                
-
             }
-
         }
         else
         {
-            laser.SetActive(false);
+            // collecting questionnaire data
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                if (currentScale > 1)
+                {
+                    currentScaleGO.SetActive(false);
+                    currentScale -= 1;
+                    scales[(currentScale-1)].SetActive(true);
+                    currentScaleGO = scales[(currentScale-1)];
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                if (currentScale < 5)
+                {
+                    currentScaleGO.SetActive(false);
+                    currentScale += 1;
+                    scales[(currentScale-1)].SetActive(true);
+                    currentScaleGO = scales[(currentScale-1)];
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.A))
+            {
+                if (currentItem < 8)
+                {
+                    responses[currentItem] = currentScale;
+                    currentScaleGO.SetActive(false);
+                    Debug.LogWarning(currentItem + ", " + 
+                                        items[currentItem].item + ", " +
+                                        responses[currentItem].ToString("F0"));
+
+                    if (!isAllowedCheck)
+                    {
+                        currentItem += 1;
+                        if (currentItem < 7)
+                        {
+                            currentScale = 3;
+                            currentScaleGO = scales[(currentScale-1)];
+                        }
+                    }
+                    else
+                    {
+                        foreach (var s in scales) s.SetActive(false);
+                        scales[(responses[(currentItem)]-1)].SetActive(true);
+                        currentScale = (responses[(currentItem)]);
+                        currentScaleGO = scales[(responses[(currentItem)]-1)];
+                    }
+                    currentScaleGO.SetActive(true);
+
+                    if (currentItem < 8) 
+                        mainText.text = items[currentItem].item;
+                    else 
+                    {
+                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.";
+                        largeInstruction.text = "Use Up/Down to check your responses and Press B to end the test.";
+                        isAllowedCheck = true;
+                        currentItem = 7;
+                    }
+                }
+            }
+
+            if (isAllowedCheck)
+            {
+                // once fill out everything
+                if (Input.GetKeyDown(KeyCode.UpArrow))
+                {
+                    if (currentItem > 0)
+                    {
+                        currentItem -= 1;
+                        mainText.text = items[currentItem].item;
+                        foreach (var s in scales) s.SetActive(false);
+                        scales[(responses[currentItem]-1)].SetActive(true);
+                        currentScale = (responses[currentItem]);
+                        currentScaleGO = scales[(responses[currentItem]-1)];
+                    }
+                }
+                else if (Input.GetKeyDown(KeyCode.DownArrow))
+                {
+                    if (currentItem < 7)
+                    {
+                        currentItem += 1;
+                        mainText.text = items[currentItem].item;
+                        foreach (var s in scales) s.SetActive(false);
+                        scales[(responses[currentItem]-1)].SetActive(true);
+                        currentScale = (responses[currentItem]);
+                        currentScaleGO = scales[(responses[currentItem]-1)];
+                    }
+
+                }
+                else if (Input.GetKeyDown(KeyCode.B))
+                {
+                    StartCoroutine(WriteFrameData());
+                    Debug.LogWarning("End, Write data");
+                    isStart = false;
+                    isEnd = true;
+                    scale.SetActive(false);
+                    smallInstruction.text = "";
+                    largeInstruction.text = "";
+                    mainText.text = "This is the end of the study.\nPlease contact the experimentor, thanks!";
+                }
+            }
         }
     }
 
+    IEnumerator WriteFrameData()
+    {
+        questionnaireWriter.Write("ParticipantID"   + "," +
+                                  "Item"            + "," +
+                                  "Response"        + "\n");
+        for (int i = 0; i < 8; i++)
+        {
+            questionnaireWriter.Write(  items[i].participantID + "," +
+                                        items[i].item          + "," +
+                                        responses[i]           + "\n");
+        }                          
+        questionnaireWriter.Flush();
+        questionnaireWriter.Close();
+        yield return 0;
+    }
 
+    public struct QuestionnaireData
+    {
+        public string participantID;
+        public string item;
 
+        public QuestionnaireData(string participantID, string item)
+        {
+            this.participantID = participantID;
+            this.item = item;
+        }
+    }
 }
