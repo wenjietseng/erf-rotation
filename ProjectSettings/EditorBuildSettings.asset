@@ -8,6 +8,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Scenes/Study1.unity
     guid: 603fd32c8ffa147c7b1597a299194788
+  - enabled: 1
+    path: Assets/_Scenes/Questionnaire.unity
+    guid: 8e227ea1e73bba54ebfb5758d2b0265c
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: ca0f34f1b7bf148f297761bd8043b51a, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 4f467548e5c2b44d784811c56e870a2f, type: 2}

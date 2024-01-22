@@ -2,9 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI;
-using Meta.WitAi.Attributes;
-using Unity.VisualScripting.ReorderableList;
 using System.IO;
 
 public class QuestionnaireController : MonoBehaviour
@@ -38,10 +35,9 @@ public class QuestionnaireController : MonoBehaviour
     void Start()
     {
         // get this part on Windows and Quest again...
-        string questionnairePath = Application.dataPath + "/Data/" + "P" + participantID.ToString("F0") + "_questionnaire.csv";
+        string questionnairePath = GetDataPath();
+        // Application.dataPath + "/Data/" + "P" + participantID.ToString("F0") + "_questionnaire.csv";
         questionnaireWriter = new StreamWriter(questionnairePath, true);
-
-
 
         isStart = false;
         scale.SetActive(false);
@@ -65,20 +61,19 @@ public class QuestionnaireController : MonoBehaviour
         Helpers.Shuffle(items);
         currentItem = 0;
         currentScale = 3;
-        currentScaleGO = scales[(currentScale-1)];
+        currentScaleGO = scales[currentScale-1];
         smallInstruction.text = "";
         largeInstruction.text = "Press A to Start.";
         isAllowedCheck = false;
         
         foreach (var s in scales) s.SetActive(false);
-
     }
 
     void Update()
     {
         if (!isStart)
         {
-            if (Input.GetKeyDown(KeyCode.A))
+            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch)) //(Input.GetKeyDown(KeyCode.A))
             {
                 if (!isEnd)
                 {
@@ -93,27 +88,27 @@ public class QuestionnaireController : MonoBehaviour
         else
         {
             // collecting questionnaire data
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            if (OVRInput.GetUp(OVRInput.Button.PrimaryThumbstickLeft, OVRInput.Controller.RTouch)) //(Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 if (currentScale > 1)
                 {
                     currentScaleGO.SetActive(false);
                     currentScale -= 1;
-                    scales[(currentScale-1)].SetActive(true);
-                    currentScaleGO = scales[(currentScale-1)];
+                    scales[currentScale-1].SetActive(true);
+                    currentScaleGO = scales[currentScale-1];
                 }
             }
-            else if (Input.GetKeyDown(KeyCode.RightArrow))
+            else if (OVRInput.GetUp(OVRInput.Button.PrimaryThumbstickRight, OVRInput.Controller.RTouch)) // (Input.GetKeyDown(KeyCode.RightArrow))
             {
                 if (currentScale < 5)
                 {
                     currentScaleGO.SetActive(false);
                     currentScale += 1;
-                    scales[(currentScale-1)].SetActive(true);
-                    currentScaleGO = scales[(currentScale-1)];
+                    scales[currentScale-1].SetActive(true);
+                    currentScaleGO = scales[currentScale-1];
                 }
             }
-            else if (Input.GetKeyDown(KeyCode.A))
+            else if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch)) // (Input.GetKeyDown(KeyCode.A))
             {
                 if (currentItem < 8)
                 {
@@ -129,15 +124,15 @@ public class QuestionnaireController : MonoBehaviour
                         if (currentItem < 7)
                         {
                             currentScale = 3;
-                            currentScaleGO = scales[(currentScale-1)];
+                            currentScaleGO = scales[currentScale-1];
                         }
                     }
                     else
                     {
                         foreach (var s in scales) s.SetActive(false);
-                        scales[(responses[(currentItem)]-1)].SetActive(true);
-                        currentScale = (responses[(currentItem)]);
-                        currentScaleGO = scales[(responses[(currentItem)]-1)];
+                        scales[responses[currentItem]-1].SetActive(true);
+                        currentScale = responses[currentItem];
+                        currentScaleGO = scales[responses[currentItem]-1];
                     }
                     currentScaleGO.SetActive(true);
 
@@ -156,34 +151,34 @@ public class QuestionnaireController : MonoBehaviour
             if (isAllowedCheck)
             {
                 // once fill out everything
-                if (Input.GetKeyDown(KeyCode.UpArrow))
+                if (OVRInput.GetUp(OVRInput.Button.PrimaryThumbstickUp, OVRInput.Controller.RTouch)) //(Input.GetKeyDown(KeyCode.UpArrow))
                 {
                     if (currentItem > 0)
                     {
                         currentItem -= 1;
                         mainText.text = items[currentItem].item;
                         foreach (var s in scales) s.SetActive(false);
-                        scales[(responses[currentItem]-1)].SetActive(true);
-                        currentScale = (responses[currentItem]);
-                        currentScaleGO = scales[(responses[currentItem]-1)];
+                        scales[responses[currentItem]-1].SetActive(true);
+                        currentScale = responses[currentItem];
+                        currentScaleGO = scales[responses[currentItem]-1];
                     }
                 }
-                else if (Input.GetKeyDown(KeyCode.DownArrow))
+                else if (OVRInput.GetUp(OVRInput.Button.PrimaryThumbstickDown, OVRInput.Controller.RTouch)) // (Input.GetKeyDown(KeyCode.DownArrow))
                 {
                     if (currentItem < 7)
                     {
                         currentItem += 1;
                         mainText.text = items[currentItem].item;
                         foreach (var s in scales) s.SetActive(false);
-                        scales[(responses[currentItem]-1)].SetActive(true);
-                        currentScale = (responses[currentItem]);
-                        currentScaleGO = scales[(responses[currentItem]-1)];
+                        scales[responses[currentItem]-1].SetActive(true);
+                        currentScale = responses[currentItem];
+                        currentScaleGO = scales[responses[currentItem]-1];
                     }
 
                 }
-                else if (Input.GetKeyDown(KeyCode.B))
+                else if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.RTouch)) // (Input.GetKeyDown(KeyCode.B))
                 {
-                    StartCoroutine(WriteFrameData());
+                    StartCoroutine(WriteQuestionnaireData());
                     Debug.LogWarning("End, Write data");
                     isStart = false;
                     isEnd = true;
@@ -196,7 +191,7 @@ public class QuestionnaireController : MonoBehaviour
         }
     }
 
-    IEnumerator WriteFrameData()
+    IEnumerator WriteQuestionnaireData()
     {
         questionnaireWriter.Write("ParticipantID"   + "," +
                                   "Item"            + "," +
@@ -222,5 +217,19 @@ public class QuestionnaireController : MonoBehaviour
             this.participantID = participantID;
             this.item = item;
         }
+    }
+
+    private string GetDataPath()
+    {
+        string fileName = "P" + participantID.ToString() + "_questionnaire.csv";
+#if UNITY_EDITOR
+        return Application.dataPath + "/Data/" + fileName;
+#elif UNITY_ANDROID
+        return Application.persistentDataPath + fileName;
+#elif UNITY_IPHONE
+        return Application.persistentDataPath + "/" + fileName;
+#else
+        return Application.dataPath + "/" + fileName;
+#endif
     }
 }

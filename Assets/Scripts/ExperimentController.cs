@@ -3,15 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Oculus.Interaction.Locomotion;
-using Unity.VisualScripting;
-using DataFileIO;
+using System.IO;
 
 public class ExperimentController : MonoBehaviour
 {
     [Header("User Info")]
     public int participantID = 0;
-    WriteFile dataFile; 
 
 
     [Header("Trial Info")]
@@ -19,6 +16,7 @@ public class ExperimentController : MonoBehaviour
     public GameObject physicalCylinder;
     public Transform targetTransform;
     public GameObject arrow;
+    public GameObject rotationCue;
     public int trialNum = 0; // 0-3, 4 trials: 2 targets times 2 self-rotations
     public int blockNum = 0; // 0-7, 8 blocks
     public float currentTime = 0;
@@ -64,76 +62,55 @@ public class ExperimentController : MonoBehaviour
     float lerpDuration = 2;
     float restingTime = 0;
     float restingInterval = 5;
+    
+    // for creating virtual cube positions
+    List<int> signs;
+    private StreamWriter erfStudyWriter;
+    
+    private List<TrialData> dataList;
 
     void Start()
     {
-        // Data file
-        dataFile = new WriteFile();
-        
-
-
-
-
-
-        passthroughLayer.enabled = false;
         fadeEffect = this.GetComponent<FadeEffect>();
         fadeEffect.fadeInEffect();
+
+        // data
+        string questionnairePath = GetDataPath();
+        erfStudyWriter = new StreamWriter(questionnairePath, true);
+        dataList = new List<TrialData>();
+
         conditionArray = new List<int> {0, 1, 2, 3};
+        signs = new List<int> {-1, -1, 1, 1};
         laserTransform = laser.transform;
         restingTime = 5.1f;
         startTrialPanelText.text = "Start Trial";
 
         // initialize the first block
-        InitializeVirtualCubePos();
+        InitializeVirtualCubeOnArc();
         Helpers.Shuffle(conditionArray);
+        Helpers.Shuffle(signs);
         PrepareTrial();
 
+        passthroughLayer.enabled = false;
         virtualCube.SetActive(false);
         physicalCylinder.SetActive(false);
         rectify.SetActive(false);
         virtualRectify.SetActive(false);
         physicalRectify.SetActive(false);
         laser.SetActive(false);
+        rotationCue.SetActive(false);
     }
 
     void Update()
     {
-
-
         if (Input.GetKeyDown(KeyCode.Q))
         {
-            fadeEffect.fadeInBlackEffect();
+            InitializeVirtualCubeOnArc();
         }
-        if (Input.GetKeyDown(KeyCode.W)) fadeEffect.fadeInEffect();
-
-        if (fadeInRW)
+        if (Input.GetKeyDown(KeyCode.W))
         {
-            if (lerpTimeElapsed < lerpDuration)
-            {
-                passthroughLayer.textureOpacity = Mathf.Lerp(0, 1,  lerpTimeElapsed / lerpDuration);
-                lerpTimeElapsed += Time.deltaTime;
-            }
-            else
-            {
-                fadeInRW = false;
-            }
+            fadeEffect.fadeInEffect();    
         }
-
-        if (fadeInVR)
-        {
-            if (lerpTimeElapsed < lerpDuration)
-            {
-                passthroughLayer.textureOpacity = Mathf.Lerp(1, 0,  lerpTimeElapsed / lerpDuration);
-                lerpTimeElapsed += Time.deltaTime;
-            }
-            else
-            {
-                fadeInVR = false;
-                passthroughLayer.enabled = false;
-            }
-        }
-
-
         if (Input.GetKeyDown(KeyCode.Space)) 
         {
             // For PC debugging
@@ -141,6 +118,10 @@ public class ExperimentController : MonoBehaviour
             StartCoroutine(ShowTargetAndRetention());
         }
 
+        // core study
+        FadeBehavior();
+
+        // initial one trial
         if (isStartTrialPanelTriggered)
         {
             isTrialRunning = true;
@@ -148,9 +129,7 @@ public class ExperimentController : MonoBehaviour
             isStartTrialPanelTriggered = false;
         }
 
-
-
-        if (blockNum < 8)
+        if (blockNum < 4)
         {
             if (trialNum < 4)
             {
@@ -168,24 +147,10 @@ public class ExperimentController : MonoBehaviour
                             if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
                             {
                                 endTimeStamp = currentTime;
-                                // record baseline measure (two time stamps, target position, selected position)
-                                Debug.LogWarning("Participant: P" +    participantID.ToString()                + ", " +
-                                                "Block: " +            blockNum                                + ", " +
-                                                "Trial: " +            trialNum                                + ", " +
-                                                "Self-Rotation: " +    currentRotation.ToString()              + ", " +
-                                                "TargetType: " +       currentTarget.ToString()                + ", " +
-                                                "Baseline: " +         isBaselineMeasure                       + ", " +
-                                                "BeginTime: " +        beginTimeStamp.ToString("F6")           + ", " +
-                                                "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
-                                                "TargetPos: " +        targetTransform.position.ToString("F6") + ", " +
-                                                "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
-                                                "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); // change to controller
+                                AddData();
                                 // reset variables
                                 isBaselineMeasure = false;
-
-
-                                DisableLaser();
-                                
+                                DisableLaser();                                
                                 // show arrow
                                 StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f));
                             }
@@ -206,25 +171,16 @@ public class ExperimentController : MonoBehaviour
                             if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
                             {
                                 endTimeStamp = currentTime;
-                                // record baseline measure (two time stamps, target position, selected position)
-                                Debug.LogWarning("Participant: P" +    participantID.ToString()                + ", " +
-                                                "Block: " +            blockNum                                + ", " +
-                                                "Trial: " +            trialNum                                + ", " +
-                                                "Self-Rotation: " +    currentRotation.ToString()              + ", " +
-                                                "TargetType: " +       currentTarget.ToString()                + ", " +
-                                                "Baseline: " +         isBaselineMeasure                       + ", " +
-                                                "BeginTime: " +        beginTimeStamp.ToString("F6")           + ", " +
-                                                "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
-                                                "TargetPos: " +        targetTransform.position.ToString("F6") + ", " +
-                                                "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
-                                                "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); // change to controller
+                                AddData();
                                 // reset variables
                                 isTestingMeasure = false;
 
                                 DisableLaser();
                                 
                                 this.transform.rotation = Quaternion.Euler(0, 0, 0);
+
                                 arrow.SetActive(true);
+
                                 isTrialRunning = false;
                                 restingTime = 0;
 
@@ -237,8 +193,9 @@ public class ExperimentController : MonoBehaviour
                                     trialNum = 0;
                                     blockNum += 1;
                                     Helpers.Shuffle(conditionArray);
+                                    Helpers.Shuffle(signs);
                                 }
-                                InitializeVirtualCubePos();
+                                InitializeVirtualCubeOnArc();
                                 //////////////////////////////
                                 // TODO
                                 // instantiate object position if needed
@@ -277,6 +234,36 @@ public class ExperimentController : MonoBehaviour
         }
     }
 
+    private void FadeBehavior()
+    {
+        if (fadeInRW)
+        {
+            if (lerpTimeElapsed < lerpDuration)
+            {
+                passthroughLayer.textureOpacity = Mathf.Lerp(0, 1,  lerpTimeElapsed / lerpDuration);
+                lerpTimeElapsed += Time.deltaTime;
+            }
+            else
+            {
+                fadeInRW = false;
+            }
+        }
+
+        if (fadeInVR)
+        {
+            if (lerpTimeElapsed < lerpDuration)
+            {
+                passthroughLayer.textureOpacity = Mathf.Lerp(1, 0,  lerpTimeElapsed / lerpDuration);
+                lerpTimeElapsed += Time.deltaTime;
+            }
+            else
+            {
+                fadeInVR = false;
+                passthroughLayer.enabled = false;
+            }
+        }
+    }
+
     public void InitializeVirtualCubePos()
     {
         virtualCube.SetActive(true);
@@ -284,6 +271,18 @@ public class ExperimentController : MonoBehaviour
         float x_half = z * Mathf.Tan(rad);
         float x = Random.Range(-x_half, x_half);
         virtualCube.transform.position = new Vector3(x, 0.05f, z);
+        virtualCube.SetActive(false);
+    }
+
+    public void InitializeVirtualCubeOnArc()
+    {
+        virtualCube.SetActive(true);
+        float angle = 90 - Random.Range(10.0f, 45.0f) * signs[trialNum];
+        // Debug.LogWarning(angle);
+        float x = 1.5f * Mathf.Cos(angle * Mathf.Deg2Rad);
+        float z = 1.5f * Mathf.Sin(angle * Mathf.Deg2Rad);
+        virtualCube.transform.position = new Vector3(x, 0.05f, z);
+        // Debug.LogWarning(virtualCube.transform.position.ToString("F4"));
         virtualCube.SetActive(false);
     }
 
@@ -337,8 +336,11 @@ public class ExperimentController : MonoBehaviour
         }
         else
         {
-            virtualRectify.SetActive(false);
-            physicalRectify.SetActive(true);
+            
+            virtualRectify.SetActive(true); // since we make both targets the same cube
+            physicalRectify.SetActive(false);
+            // virtualRectify.SetActive(false);
+            // physicalRectify.SetActive(true);
         }
         laser.SetActive(true);
         isTestingMeasure = true;
@@ -383,6 +385,8 @@ public class ExperimentController : MonoBehaviour
         // prepare for the pointing task
         fadeEffect.fadeInEffect();
         rectify.SetActive(true);
+
+
         if (currentTarget == Targets.virtualTarget)
         {
             virtualRectify.SetActive(true);
@@ -390,9 +394,13 @@ public class ExperimentController : MonoBehaviour
         }
         else
         {
-            virtualRectify.SetActive(false);
-            physicalRectify.SetActive(true);
+            
+            virtualRectify.SetActive(true);
+            physicalRectify.SetActive(false);
+            // virtualRectify.SetActive(false);
+            // physicalRectify.SetActive(true);
         }
+        
         laser.SetActive(true);
         isBaselineMeasure = true;
         beginTimeStamp = currentTime;
@@ -416,6 +424,65 @@ public class ExperimentController : MonoBehaviour
         laserTransform.position = Vector3.Lerp(controller.transform.position, hitPoint, .5f); // move laser to the middle
         laserTransform.LookAt(hitPoint); // rotate and face the hit point
         laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(controller.transform.position, hitPoint));
+    }
+
+    IEnumerator WriteERFStudyData()
+    {
+        erfStudyWriter.Write("Participant"    + ","+
+                        "Block"               + ","+
+                        "Trial"               + ","+
+                        "Self-Rotation"       + ","+
+                        "TargetType"          + ","+
+                        "Baseline"            + ","+
+                        "BeginTime"           + ","+
+                        "EndTime"             + ","+
+                        "TargetPos"           + ","+
+                        "SelectedPos"         + ","+
+                        "ControllerPos"       + "\n");
+        foreach (var data in dataList)
+        {
+            erfStudyWriter.Write("P" + data.particiapntID.ToString()        + "," +
+                                 data.blockNum.ToString()                   + "," +
+                                 data.trialNum.ToString()                   + "," + 
+                                 data.currentRotation.ToString()            + "," +
+                                 data.currentTarget.ToString()              + "," +
+                                 data.isBaselineMeasure.ToString()          + "," +
+                                 data.beginTime.ToString("F6")              + "," +
+                                 data.endTime.ToString("F6")                + "," +
+                                 data.targetPos.ToString("F6")              + "," +
+                                 data.selectedPos.ToString("F6")            + "," +
+                                 data.controllerPos.ToString("F6")          + "\n");
+        }
+        erfStudyWriter.Flush();
+        erfStudyWriter.Close();
+        yield return 0;
+    }
+
+    private void AddData()
+    {
+        dataList.Add(new TrialData(participantID.ToString(), 
+                            blockNum,
+                            trialNum,
+                            currentCondition.ToString(),
+                            currentTarget.ToString(),
+                            isBaselineMeasure,
+                            beginTimeStamp,
+                            endTimeStamp,
+                            targetTransform.position,
+                            hitPoint,
+                            controller.transform.position));
+        // record baseline measure (two time stamps, target position, selected position)
+        Debug.LogWarning("Participant: P" +    participantID.ToString()                + ", " +
+                        "Block: " +            blockNum                                + ", " +
+                        "Trial: " +            trialNum                                + ", " +
+                        "Self-Rotation: " +    currentRotation.ToString()              + ", " +
+                        "TargetType: " +       currentTarget.ToString()                + ", " +
+                        "Baseline: " +         isBaselineMeasure                       + ", " +
+                        "BeginTime: " +        beginTimeStamp.ToString("F6")           + ", " +
+                        "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
+                        "TargetPos: " +        targetTransform.position.ToString("F6") + ", " +
+                        "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
+                        "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); 
     }
 
     public struct TrialData
@@ -447,6 +514,20 @@ public class ExperimentController : MonoBehaviour
             this.selectedPos = selectedPos;
             this.controllerPos = controllerPos;
         }
+    }
+
+    private string GetDataPath()
+    {
+        string fileName = "P" + participantID.ToString() + "erf.csv";
+#if UNITY_EDITOR
+        return Application.dataPath + "/Data/" + fileName;
+#elif UNITY_ANDROID
+        return Application.persistentDataPath + fileName;
+#elif UNITY_IPHONE
+        return Application.persistentDataPath + "/" + fileName;
+#else
+        return Application.dataPath + "/" + fileName;
+#endif
     }
 }
 
