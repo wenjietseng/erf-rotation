@@ -137,7 +137,7 @@ public class ExperimentController : MonoBehaviour
             isStartTrialPanelTriggered = false;
         }
 
-        if (blockNum < 1)
+        if (blockNum < 4)
         {
             if (trialNum < 4)
             {
