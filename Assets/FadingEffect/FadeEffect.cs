@@ -12,6 +12,7 @@ public class FadeEffect : MonoBehaviour {
 	float speed = 3.0f;
 	Action fadeInCallBack;
 	Action fadeInBlackCallBack;
+	float testDuration = 0f;
 
 	void Start ()
 	{
@@ -22,10 +23,12 @@ public class FadeEffect : MonoBehaviour {
 	{
 		if(fadeIn)
 		{
+			// testDuration += Time.deltaTime;
 			counter -= Time.deltaTime * speed;
 			fadeRenderer.sharedMaterial.SetFloat("_Alpha", counter);
 			if(counter <= 0)
 			{
+				// Debug.LogWarning(testDuration);
 				fadeIn = false;
 				fadeRenderer.sharedMaterial.SetFloat("_Alpha", 0);
 				if(fadeInCallBack != null) fadeInCallBack();
@@ -53,6 +56,7 @@ public class FadeEffect : MonoBehaviour {
 
 	public void fadeInEffect(Action callBack = null)
 	{
+		testDuration = 0;
 		counter = 1;
 		fadeIn = true;
 		fadeInCallBack = callBack;

@@ -31,9 +31,15 @@ public class QuestionnaireController : MonoBehaviour
     private int currentScale;
     public int currentItem;
     private StreamWriter questionnaireWriter;
+    public FadeEffect fadeEffect;
+    
 
     void Start()
     {
+        fadeEffect = this.GetComponent<FadeEffect>();
+        fadeEffect.fadeInEffect();
+
+
         // get this part on Windows and Quest again...
         string questionnairePath = GetDataPath();
         // Application.dataPath + "/Data/" + "P" + participantID.ToString("F0") + "_questionnaire.csv";
@@ -71,6 +77,13 @@ public class QuestionnaireController : MonoBehaviour
 
     void Update()
     {
+
+        // if (Input.GetKeyDown(KeyCode.Q))
+        // {
+        //     fadeEffect.fadeInEffect();
+        // }
+
+
         if (!isStart)
         {
             if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch)) //(Input.GetKeyDown(KeyCode.A))
@@ -81,6 +94,7 @@ public class QuestionnaireController : MonoBehaviour
                     mainText.text = items[currentItem].item;
                     scale.SetActive(true);
                     currentScaleGO.SetActive(true);
+                    smallInstruction.text = (currentItem + 1).ToString("F0") + "/8";
                     largeInstruction.text = "Use Left/Right to select a response and press A to confrim.";
                 }
             }
@@ -136,11 +150,14 @@ public class QuestionnaireController : MonoBehaviour
                     }
                     currentScaleGO.SetActive(true);
 
-                    if (currentItem < 8) 
+                    if (currentItem < 8)
+                    {
                         mainText.text = items[currentItem].item;
+                        smallInstruction.text = (currentItem + 1).ToString("F0") + "/8";
+                    }
                     else 
                     {
-                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.";
+                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.\n" + currentItem.ToString("F0") + "/8";
                         largeInstruction.text = "Use Up/Down to check your responses and Press B to end the test.";
                         isAllowedCheck = true;
                         currentItem = 7;
@@ -156,6 +173,7 @@ public class QuestionnaireController : MonoBehaviour
                     if (currentItem > 0)
                     {
                         currentItem -= 1;
+                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.\n" + (currentItem + 1).ToString("F0") + "/8";
                         mainText.text = items[currentItem].item;
                         foreach (var s in scales) s.SetActive(false);
                         scales[responses[currentItem]-1].SetActive(true);
@@ -168,6 +186,7 @@ public class QuestionnaireController : MonoBehaviour
                     if (currentItem < 7)
                     {
                         currentItem += 1;
+                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.\n" + (currentItem + 1).ToString("F0") + "/8";
                         mainText.text = items[currentItem].item;
                         foreach (var s in scales) s.SetActive(false);
                         scales[responses[currentItem]-1].SetActive(true);

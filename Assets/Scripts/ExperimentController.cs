@@ -4,6 +4,7 @@ using UnityEngine;
 using TMPro;
 using System.IO;
 using UnityEngine.SceneManagement;
+using Unity.VisualScripting;
 
 public class ExperimentController : MonoBehaviour
 {
@@ -20,6 +21,7 @@ public class ExperimentController : MonoBehaviour
     public GameObject outOfViewCue;
     public GameObject ansCube;
     public Material ansMaterial;
+    public GameObject response;
     private float ansAlpha;
     public int trialNum = 0; // 0-3, 4 trials: 2 targets times 2 self-rotations
     public int blockNum = 0; // 0-7, 8 blocks
@@ -52,6 +54,8 @@ public class ExperimentController : MonoBehaviour
     // private variables
     public static bool isStartTrialPanelTriggered;
     public TMP_Text startTrialPanelText;
+    public GameObject instruction;
+    public TMP_Text instructionText;
     bool isTrialRunning;
     bool isBaselineMeasure;
     bool isTestingMeasure;
@@ -69,10 +73,12 @@ public class ExperimentController : MonoBehaviour
     
     // for creating virtual cube positions
     List<int> signs;
+    private int virtualCubeCount = 0;
     private StreamWriter erfStudyWriter;
     
     private List<TrialData> dataList;
     private bool isDataSaved;
+    public static float selfRotationDuration;
 
     void Start()
     {
@@ -85,10 +91,11 @@ public class ExperimentController : MonoBehaviour
         dataList = new List<TrialData>();
 
         conditionArray = new List<int> {0, 1, 2, 3};
-        signs = new List<int> {-1, -1, 1, 1};
+        signs = new List<int> {-1, 1};
         laserTransform = laser.transform;
         restingTime = 5.1f;
         startTrialPanelText.text = "Start Trial";
+        instructionText.text = "Use your right controller to touch the panel and begin.";
 
         // initialize the first block
         InitializeVirtualCubeOnArc();
@@ -105,7 +112,8 @@ public class ExperimentController : MonoBehaviour
         laser.SetActive(false);
         rotationCue.SetActive(false);
         ansCube.SetActive(false);
-        ansAlpha = 1f;
+        response.SetActive(false);
+        ansAlpha = 0.5f;
         ansMaterial.color = new Color(0, 1, 1, ansAlpha);
     }
 
@@ -113,7 +121,7 @@ public class ExperimentController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Q))
         {
-            InitializeVirtualCubeOnArc();
+            // InitializeVirtualCubeOnArc();
         }
         if (Input.GetKeyDown(KeyCode.W))
         {
@@ -136,6 +144,12 @@ public class ExperimentController : MonoBehaviour
             StartCoroutine(ShowTargetAndRetention());
             isStartTrialPanelTriggered = false;
         }
+
+        if (rotationCue.activeSelf && RotationCueControl.isCueComplete)
+        {
+            rotationCue.SetActive(false);
+        }
+
 
         if (blockNum < 4)
         {
@@ -161,7 +175,8 @@ public class ExperimentController : MonoBehaviour
                                 // reset variables
                                 isBaselineMeasure = false;
                                 DisableLaser();                                
-                                // show arrow
+                                // show rotation cue.
+                                if (blockNum < 2) instructionText.text = "Look at the white circle,\nwalking in place and put your arm down."; // for rotation of static
                                 StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f));
                             }
                         }
@@ -170,6 +185,9 @@ public class ExperimentController : MonoBehaviour
                             DisableLaser();
                         }
                     }
+
+                    // this is a bit random LOL. I want to keep track if there's time for rotation cue animation.
+                    if (!RotationCueControl.isCueComplete) selfRotationDuration = endTimeStamp + 5.0f - currentTime;
 
                     if (isTestingMeasure)
                     {
@@ -230,13 +248,17 @@ public class ExperimentController : MonoBehaviour
                     {
                         // wait for 5 seconds and show the next trial
                         restingTime += Time.deltaTime;
+
                         if (restingTime < restingInterval)
                         {
-                            startTrialPanelText.text = (5.4 - restingTime).ToString("F0");
-                        }
+                            startTrialPanelText.text = UpdateProgressInfo() + "\n" + (5.4 - restingTime).ToString("F0");
+                            if (blockNum < 2) instructionText.text = "Pause 5 secs, put your arm down.";
+                        } 
                         else
                         {
                             startTrialPanelText.text = "Start Trial";
+                            if (blockNum == 2 && trialNum == 0) instructionText.text = "Do you need more practice?\nIf not, continue by touching the start trial.";
+                            else instructionText.text = "";
                         }
                     }
                 }
@@ -252,6 +274,19 @@ public class ExperimentController : MonoBehaviour
                 isDataSaved = true;
                 fadeEffect.fadeInBlackEffect();
             }
+        }
+    }
+
+    private string UpdateProgressInfo()
+    {
+        if (blockNum < 2)
+        {
+            return (blockNum*4 + trialNum).ToString("F0") + "/8";
+        }
+        else
+        {
+            if (blockNum == 2 && trialNum == 0) return "End of Practice";
+            else return ((blockNum-2)*4 + trialNum).ToString("F0") + "/32";
         }
     }
 
@@ -287,8 +322,12 @@ public class ExperimentController : MonoBehaviour
 
     IEnumerator ShowAns(float duration = 2f)
     {
+        response.SetActive(true);
+        response.transform.position = rectify.transform.position;
+        response.transform.rotation = rectify.transform.rotation;
+
         ansCube.SetActive(true);
-        ansAlpha = 1f;
+        ansAlpha = 0.5f;
         ansMaterial.color = new Color(0, 1, 1, ansAlpha);
         ansCube.transform.position = targetTransform.position;
         ansCube.transform.LookAt(Vector3.zero);
@@ -300,6 +339,7 @@ public class ExperimentController : MonoBehaviour
         //     ansMaterial.color = new Color(0, 1, 1, ansAlpha);
         // }
         ansCube.SetActive(false);
+        response.SetActive(false);
         // ansAlpha = 0f;
         // ansMaterial.color = new Color(0, 1, 1, ansAlpha);
         yield return 0;
@@ -318,13 +358,14 @@ public class ExperimentController : MonoBehaviour
     public void InitializeVirtualCubeOnArc()
     {
         virtualCube.SetActive(true);
-        float angle = 90 - Random.Range(10.0f, 45.0f) * signs[trialNum];
+        float angle = 90 - Random.Range(10.0f, 45.0f) * signs[virtualCubeCount % 2];
         // Debug.LogWarning(angle);
         float x = 1.5f * Mathf.Cos(angle * Mathf.Deg2Rad);
         float z = 1.5f * Mathf.Sin(angle * Mathf.Deg2Rad);
         virtualCube.transform.position = new Vector3(x, 0.05f, z);
         virtualCube.transform.LookAt(Vector3.zero);
         // Debug.LogWarning(virtualCube.transform.position.ToString("F4"));
+        virtualCubeCount += 1;
         virtualCube.SetActive(false);
     }
 
@@ -356,53 +397,10 @@ public class ExperimentController : MonoBehaviour
         }
     }
 
-    public IEnumerator ShowRotateOrientation(float _showTimeStamp)
-    {
-        // arrow.SetActive(true);
-        if (currentRotation == SelfRotation.none)
-        {
-            RotationCueControl.isCueComplete = true; // I hard coded this ... since we don't need to show cue for static condition.
-            this.transform.LookAt(new Vector3(targetTransform.position.x, 0, targetTransform.position.z));
-            // this.transform.rotation = Quaternion.Euler(0, 0, 0); // old
-        }
-        else
-        {
-            rotationCue.SetActive(true);
-            this.transform.LookAt(new Vector3(targetTransform.position.x, 0, targetTransform.position.z));
-            this.transform.rotation = Quaternion.Euler(0, this.transform.rotation.eulerAngles.y + 120, 0);
-            outOfViewCue.SetActive(true);
-
-            // Sets the transform's current rotation to a new rotation that rotates 120 degrees around the y-axis(Vector3.up)
-            // this.transform.rotation = Quaternion.AngleAxis(120, Vector3.up);
-        }
-
-        yield return new WaitUntil(() => currentTime > _showTimeStamp && RotationCueControl.isCueComplete);
-        // prepare for the pointing task
-        // arrow.SetActive(false);
-        rotationCue.SetActive(false);
-        rectify.SetActive(true);
-        if (currentTarget == Targets.virtualTarget)
-        {
-            virtualRectify.SetActive(true);
-            physicalRectify.SetActive(false);
-        }
-        else
-        {
-            
-            virtualRectify.SetActive(true); // since we make both targets the same cube
-            physicalRectify.SetActive(false);
-            // virtualRectify.SetActive(false);
-            // physicalRectify.SetActive(true);
-        }
-        laser.SetActive(true);
-        isTestingMeasure = true;
-        beginTimeStamp = currentTime;
-        yield return 0;
-    }
-
     public IEnumerator ShowTargetAndRetention(float _showTimeStamp = 5.0f, float _retentionTimeStamp = 10.0f)
 	{
         currentTime = 0.0f;
+        instructionText.text = "";
         // arrow.SetActive(false);
         StartTrialPanel.SetActive(false);
         // show a target
@@ -433,9 +431,13 @@ public class ExperimentController : MonoBehaviour
             fadeInVR = true;
         }
         fadeEffect.fadeInBlackEffect();
+        yield return new WaitUntil(() => currentTime > _retentionTimeStamp - 0.5f);
+
+        fadeEffect.fadeInEffect(); // fade in effect takes around 0.334-0.347 secs. Therefore we save 0.5s as a buffer.
+
         yield return new WaitUntil(() => currentTime > _retentionTimeStamp);
         // prepare for the pointing task
-        fadeEffect.fadeInEffect();
+        beginTimeStamp = currentTime;
         rectify.SetActive(true);
 
         /////////////////////////////////////
@@ -454,10 +456,59 @@ public class ExperimentController : MonoBehaviour
             // physicalRectify.SetActive(true);
         }
         /////////////////////////////////////
-        
+
+        if (blockNum < 2) instructionText.text = "Once see the raycast, point\nto the target and confirm with Button A.";
+
         laser.SetActive(true);
         isBaselineMeasure = true;
+        yield return 0;
+    }
+
+    public IEnumerator ShowRotateOrientation(float _showTimeStamp)
+    {
+        // arrow.SetActive(true);
+        if (currentRotation == SelfRotation.none)
+        {
+            // RotationCueControl.isCueComplete = true; // I hard coded this ... since we don't need to show cue for static condition.
+            rotationCue.SetActive(true);
+            outOfViewCue.SetActive(false);
+            // this.transform.LookAt(new Vector3(targetTransform.position.x, 0, targetTransform.position.z));
+            this.transform.rotation = Quaternion.Euler(0, 0, 0); 
+        }
+        else
+        {
+            rotationCue.SetActive(true);
+            this.transform.LookAt(new Vector3(targetTransform.position.x, 0, targetTransform.position.z));
+            this.transform.rotation = Quaternion.Euler(0, this.transform.rotation.eulerAngles.y + 120, 0);
+            outOfViewCue.SetActive(true);
+
+            // Sets the transform's current rotation to a new rotation that rotates 120 degrees around the y-axis(Vector3.up)
+            // this.transform.rotation = Quaternion.AngleAxis(120, Vector3.up);
+        }
+
+        yield return new WaitUntil(() => currentTime > _showTimeStamp && RotationCueControl.isCueComplete);
         beginTimeStamp = currentTime;
+        // prepare for the pointing task
+        // arrow.SetActive(false);
+        RotationCueControl.isCueComplete = false;
+        rotationCue.SetActive(false);
+        rectify.SetActive(true);
+        if (currentTarget == Targets.virtualTarget)
+        {
+            virtualRectify.SetActive(true);
+            physicalRectify.SetActive(false);
+        }
+        else
+        {
+            
+            virtualRectify.SetActive(true); // since we make both targets the same cube
+            physicalRectify.SetActive(false);
+            // virtualRectify.SetActive(false);
+            // physicalRectify.SetActive(true);
+        }
+        laser.SetActive(true);
+        if (blockNum < 2) instructionText.text = "Once see the raycast, point\nto the target and confirm with Button A.";
+        isTestingMeasure = true;
         yield return 0;
     }
 
@@ -491,22 +542,34 @@ public class ExperimentController : MonoBehaviour
                         "Baseline"            + ","+
                         "BeginTime"           + ","+
                         "EndTime"             + ","+
-                        "TargetPos"           + ","+
-                        "SelectedPos"         + ","+
-                        "ControllerPos"       + "\n");
+                        "TargetPos_X"         + ","+
+                        "TargetPos_Y"         + ","+
+                        "TargetPos_Z"         + ","+
+                        "SelectedPos_X"       + ","+
+                        "SelectedPos_Y"       + ","+
+                        "SelectedPos_Z"       + ","+
+                        "ControllerPos_X"     + ","+
+                        "ControllerPos_Y"     + ","+
+                        "ControllerPos_Z"     + "\n");
         foreach (var data in dataList)
         {
-            erfStudyWriter.Write("P" + data.particiapntID.ToString()        + "," +
-                                 data.blockNum.ToString()                   + "," +
-                                 data.trialNum.ToString()                   + "," + 
-                                 data.currentRotation.ToString()            + "," +
-                                 data.currentTarget.ToString()              + "," +
-                                 data.isBaselineMeasure.ToString()          + "," +
-                                 data.beginTime.ToString("F6")              + "," +
-                                 data.endTime.ToString("F6")                + "," +
-                                 data.targetPos.ToString("F6")              + "," +
-                                 data.selectedPos.ToString("F6")            + "," +
-                                 data.controllerPos.ToString("F6")          + "\n");
+            erfStudyWriter.Write("P" + data.particiapntID.ToString()          + "," +
+                                 data.blockNum.ToString()                     + "," +
+                                 data.trialNum.ToString()                     + "," + 
+                                 data.currentRotation.ToString()              + "," +
+                                 data.currentTarget.ToString()                + "," +
+                                 data.isBaselineMeasure.ToString()            + "," +
+                                 data.beginTime.ToString("F6")                + "," +
+                                 data.endTime.ToString("F6")                  + "," +
+                                 data.targetPos.x.ToString("F6")              + "," +
+                                 data.targetPos.y.ToString("F6")              + "," +
+                                 data.targetPos.z.ToString("F6")              + "," +
+                                 data.selectedPos.x.ToString("F6")            + "," +
+                                 data.selectedPos.y.ToString("F6")            + "," +
+                                 data.selectedPos.z.ToString("F6")            + "," +
+                                 data.controllerPos.x.ToString("F6")          + "," +
+                                 data.controllerPos.y.ToString("F6")          + "," +
+                                 data.controllerPos.z.ToString("F6")          + "\n");
         }
         erfStudyWriter.Flush();
         erfStudyWriter.Close();

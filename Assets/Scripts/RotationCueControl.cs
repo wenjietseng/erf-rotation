@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Security;
 using JetBrains.Annotations;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -11,10 +12,11 @@ public class RotationCueControl : MonoBehaviour
     public Image uiFill;
     public LayerMask pointingMask;
     public GameObject outOfViewIndicator;
+    public GameObject visualCollider;
     public float remainingDuration;
     public float duration;
     public static bool isCueComplete;
-    bool isConfirming;
+    bool isConfirmed;
     RaycastHit hitVisualCue;
 
     void Start()
@@ -24,20 +26,19 @@ public class RotationCueControl : MonoBehaviour
 
     void Update()
     {
+        // Debug.LogWarning(ExperimentController.selfRotationDuration);
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out hitVisualCue, 200, pointingMask))
         {
-            if (hitVisualCue.transform.name == "Visual Collider" && !isConfirming)
+            if (hitVisualCue.transform.name == "Visual Collider" && !isConfirmed)
             {
-                // Debug.LogWarning("yaassss");  
-                Being(duration);
-                isConfirming = true;
+                visualCollider.SetActive(false);
+
+                if (ExperimentController.selfRotationDuration < 1) Being(0f);
+                else Being(duration);
                 isCueComplete = false;
+                isConfirmed = true;
                 if (outOfViewIndicator.activeSelf) outOfViewIndicator.SetActive(false);
             }
-        }
-        else
-        {
-            isConfirming = false;
         }
     }
 
@@ -61,8 +62,11 @@ public class RotationCueControl : MonoBehaviour
 
     private void OnEnd()
     {
-        isCueComplete = true;
+        visualCollider.SetActive(true);        
+        isConfirmed = false;
         uiFill.fillAmount = 0;
         print("Ënd Visual Cue");
+        
+        isCueComplete = true;
     }
 }
