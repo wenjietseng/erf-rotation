@@ -98,14 +98,13 @@ public class ExperimentController : MonoBehaviour
         instructionText.text = "Use your right controller to touch the panel and begin.";
 
         // initialize the first block
-        InitializeVirtualCubeOnArc();
         Helpers.Shuffle(conditionArray);
         Helpers.Shuffle(signs);
         PrepareTrial();
 
         passthroughLayer.enabled = false;
         virtualCube.SetActive(false);
-        physicalCube.SetActive(false);
+
         rectify.SetActive(false);
         virtualRectify.SetActive(false);
         physicalRectify.SetActive(false);
@@ -138,9 +137,11 @@ public class ExperimentController : MonoBehaviour
         FadeBehavior();
 
         // initial one trial
-        if (isStartTrialPanelTriggered)
+        if (isStartTrialPanelTriggered && Alignment.isCalibrated)
         {
+            physicalCube.SetActive(false);
             isTrialRunning = true;
+            InitializeVirtualCubeOnArc();
             StartCoroutine(ShowTargetAndRetention());
             isStartTrialPanelTriggered = false;
         }
@@ -358,10 +359,10 @@ public class ExperimentController : MonoBehaviour
     public void InitializeVirtualCubeOnArc()
     {
         virtualCube.SetActive(true);
-        float angle = 90 - Random.Range(10.0f, 45.0f) * signs[virtualCubeCount % 2];
+        float angle = 90f - Random.Range(10.0f, 45.0f) * signs[virtualCubeCount % 2];
         // Debug.LogWarning(angle);
-        float x = 1.5f * Mathf.Cos(angle * Mathf.Deg2Rad);
-        float z = 1.5f * Mathf.Sin(angle * Mathf.Deg2Rad);
+        float x = Alignment.calibratedDistance * Mathf.Cos(angle * Mathf.Deg2Rad);
+        float z = Alignment.calibratedDistance * Mathf.Sin(angle * Mathf.Deg2Rad);
         virtualCube.transform.position = new Vector3(x, 0.05f, z);
         virtualCube.transform.LookAt(Vector3.zero);
         // Debug.LogWarning(virtualCube.transform.position.ToString("F4"));
@@ -537,6 +538,7 @@ public class ExperimentController : MonoBehaviour
         erfStudyWriter.Write("Participant"    + ","+
                         "Block"               + ","+
                         "Trial"               + ","+
+                        "Condition"           + ","+
                         "Self-Rotation"       + ","+
                         "TargetType"          + ","+
                         "Baseline"            + ","+
@@ -555,7 +557,8 @@ public class ExperimentController : MonoBehaviour
         {
             erfStudyWriter.Write("P" + data.particiapntID.ToString()          + "," +
                                  data.blockNum.ToString()                     + "," +
-                                 data.trialNum.ToString()                     + "," + 
+                                 data.trialNum.ToString()                     + "," +
+                                 data.currentCondition.ToString()             + "," +
                                  data.currentRotation.ToString()              + "," +
                                  data.currentTarget.ToString()                + "," +
                                  data.isBaselineMeasure.ToString()            + "," +
@@ -585,6 +588,7 @@ public class ExperimentController : MonoBehaviour
                             blockNum,
                             trialNum,
                             currentCondition.ToString(),
+                            currentRotation.ToString(),
                             currentTarget.ToString(),
                             isBaselineMeasure,
                             beginTimeStamp,
@@ -596,6 +600,7 @@ public class ExperimentController : MonoBehaviour
         Debug.LogWarning("Participant: P" +    participantID.ToString()                + ", " +
                         "Block: " +            blockNum                                + ", " +
                         "Trial: " +            trialNum                                + ", " +
+                        "Condition: " +        currentCondition.ToString()             + ", " +
                         "Self-Rotation: " +    currentRotation.ToString()              + ", " +
                         "TargetType: " +       currentTarget.ToString()                + ", " +
                         "Baseline: " +         isBaselineMeasure                       + ", " +
@@ -611,6 +616,7 @@ public class ExperimentController : MonoBehaviour
         public string particiapntID;
         public int blockNum;
         public int trialNum;
+        public string currentCondition;
         public string currentRotation;
         public string currentTarget;
         public bool isBaselineMeasure;
@@ -620,12 +626,13 @@ public class ExperimentController : MonoBehaviour
         public Vector3 selectedPos;
         public Vector3 controllerPos;
 
-        public TrialData(string particiapntID, int blockNum, int trialNum, string currentRotation, string currentTarget, bool isBaselineMeasure,
+        public TrialData(string particiapntID, int blockNum, int trialNum, string currentCondition, string currentRotation, string currentTarget, bool isBaselineMeasure,
                          float beginTime, float endTime, Vector3 targetPos, Vector3 selectedPos, Vector3 controllerPos)
         {
             this.particiapntID = particiapntID;
             this.blockNum = blockNum; 
             this.trialNum = trialNum;
+            this.currentCondition = currentCondition;
             this.currentRotation = currentRotation;
             this.currentTarget = currentTarget;
             this.isBaselineMeasure = isBaselineMeasure; 
