@@ -79,6 +79,7 @@ public class ExperimentController : MonoBehaviour
     private List<TrialData> dataList;
     private bool isDataSaved;
     public static float selfRotationDuration;
+    private Vector3 responseVec;
 
     void Start()
     {
@@ -94,7 +95,7 @@ public class ExperimentController : MonoBehaviour
         signs = new List<int> {-1, 1};
         laserTransform = laser.transform;
         restingTime = 5.1f;
-        startTrialPanelText.text = "Start Trial";
+        // startTrialPanelText.text = "Start Trial";
         instructionText.text = "Use your right controller to touch the panel and begin.";
 
         // initialize the first block
@@ -102,7 +103,7 @@ public class ExperimentController : MonoBehaviour
         Helpers.Shuffle(signs);
         PrepareTrial();
 
-        passthroughLayer.enabled = false;
+        // passthroughLayer.enabled = false;
         virtualCube.SetActive(false);
 
         rectify.SetActive(false);
@@ -139,9 +140,7 @@ public class ExperimentController : MonoBehaviour
         // initial one trial
         if (isStartTrialPanelTriggered && Alignment.isCalibrated)
         {
-            physicalCube.SetActive(false);
             isTrialRunning = true;
-            InitializeVirtualCubeOnArc();
             StartCoroutine(ShowTargetAndRetention());
             isStartTrialPanelTriggered = false;
         }
@@ -152,7 +151,7 @@ public class ExperimentController : MonoBehaviour
         }
 
 
-        if (blockNum < 4)
+        if (blockNum < 10)
         {
             if (trialNum < 4)
             {
@@ -170,9 +169,23 @@ public class ExperimentController : MonoBehaviour
                             if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
                             {
                                 endTimeStamp = currentTime;
+                                responseVec = hitPoint;
+                                Debug.LogWarning(responseVec.ToString("F3"));
                                 AddData();
-                                if (blockNum < 2) StartCoroutine(ShowAns(2f));
 
+                                if (blockNum < 2)
+                                {
+                                    response.SetActive(true);
+                                    response.transform.position = responseVec;
+                                    response.transform.LookAt(Vector3.zero);
+
+                                    ansCube.SetActive(true);
+                                    ansAlpha = 0.5f;
+                                    ansMaterial.color = new Color(0, 1, 1, ansAlpha);
+                                    ansCube.transform.position = targetTransform.position;
+                                    ansCube.transform.LookAt(Vector3.zero);
+                                    StartCoroutine(ShowAns(2f));
+                                }
                                 // reset variables
                                 isBaselineMeasure = false;
                                 DisableLaser();                                
@@ -200,9 +213,24 @@ public class ExperimentController : MonoBehaviour
                             if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
                             {
                                 endTimeStamp = currentTime;
+                                responseVec = hitPoint;
+                                Debug.LogWarning(responseVec.ToString("F3"));
                                 AddData();
-                                                                
-                                if (blockNum < 2) StartCoroutine(ShowAns(2f));
+
+
+                                if (blockNum < 2)
+                                {
+                                    response.SetActive(true);
+                                    response.transform.position = responseVec;
+                                    response.transform.LookAt(Vector3.zero);
+
+                                    ansCube.SetActive(true);
+                                    ansAlpha = 0.5f;
+                                    ansMaterial.color = new Color(0, 1, 1, ansAlpha);
+                                    ansCube.transform.position = targetTransform.position;
+                                    ansCube.transform.LookAt(Vector3.zero);
+                                    StartCoroutine(ShowAns(2f));
+                                }
 
                                 // reset variables
                                 isTestingMeasure = false;
@@ -228,12 +256,12 @@ public class ExperimentController : MonoBehaviour
                                     Helpers.Shuffle(conditionArray);
                                     Helpers.Shuffle(signs);
                                 }
-                                InitializeVirtualCubeOnArc();
+                                PrepareTrial();
+
                                 //////////////////////////////
                                 // TODO
                                 // instantiate object position if needed
                                 //////////////////////////////
-                                PrepareTrial();
                                 StartTrialPanel.SetActive(true);
                             }
                         }   
@@ -323,26 +351,9 @@ public class ExperimentController : MonoBehaviour
 
     IEnumerator ShowAns(float duration = 2f)
     {
-        response.SetActive(true);
-        response.transform.position = rectify.transform.position;
-        response.transform.rotation = rectify.transform.rotation;
-
-        ansCube.SetActive(true);
-        ansAlpha = 0.5f;
-        ansMaterial.color = new Color(0, 1, 1, ansAlpha);
-        ansCube.transform.position = targetTransform.position;
-        ansCube.transform.LookAt(Vector3.zero);
         yield return new WaitForSeconds(duration);
-
-        // while (ansAlpha > 0)
-        // {
-        //     ansAlpha -= Time.deltaTime;
-        //     ansMaterial.color = new Color(0, 1, 1, ansAlpha);
-        // }
         ansCube.SetActive(false);
         response.SetActive(false);
-        // ansAlpha = 0f;
-        // ansMaterial.color = new Color(0, 1, 1, ansAlpha);
         yield return 0;
     }
 
@@ -358,16 +369,12 @@ public class ExperimentController : MonoBehaviour
 
     public void InitializeVirtualCubeOnArc()
     {
-        virtualCube.SetActive(true);
         float angle = 90f - Random.Range(10.0f, 45.0f) * signs[virtualCubeCount % 2];
-        // Debug.LogWarning(angle);
         float x = Alignment.calibratedDistance * Mathf.Cos(angle * Mathf.Deg2Rad);
         float z = Alignment.calibratedDistance * Mathf.Sin(angle * Mathf.Deg2Rad);
         virtualCube.transform.position = new Vector3(x, 0.05f, z);
         virtualCube.transform.LookAt(Vector3.zero);
-        // Debug.LogWarning(virtualCube.transform.position.ToString("F4"));
         virtualCubeCount += 1;
-        virtualCube.SetActive(false);
     }
 
     public void PrepareTrial()
@@ -408,6 +415,7 @@ public class ExperimentController : MonoBehaviour
         if (currentTarget == Targets.virtualTarget)
         {
             virtualCube.SetActive(true);
+            InitializeVirtualCubeOnArc();
             targetTransform = virtualCube.transform;
         }
         else 
@@ -594,7 +602,7 @@ public class ExperimentController : MonoBehaviour
                             beginTimeStamp,
                             endTimeStamp,
                             targetTransform.position,
-                            hitPoint,
+                            responseVec,
                             controller.transform.position));
         // record baseline measure (two time stamps, target position, selected position)
         Debug.LogWarning("Participant: P" +    participantID.ToString()                + ", " +
@@ -673,6 +681,8 @@ public static class Helpers
             list[n] = list[r];
             list[r] = tmp;
         }
+
+
     }
 
     public static float DegreeToRadian(float deg)

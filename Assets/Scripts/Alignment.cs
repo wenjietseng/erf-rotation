@@ -26,6 +26,8 @@ public class Alignment : MonoBehaviour
 
     // Controller that will be used to make the alignment
     [SerializeField] private GameObject controller; // use left controller in our case
+    public GameObject startTrialPanel;
+    public GameObject physicalCube;
 
     // Input 
     // [SerializeField] private InputActionProperty button1; // OVRInput.GetUp(OVRInput.Button.One, controller); OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch)
@@ -51,6 +53,7 @@ public class Alignment : MonoBehaviour
     public static float calibratedDistance;
     Transform laserTransform;
     RaycastHit hit;
+    public OVRPassthroughLayer passthroughLayer;
 
     // Start is called before the first frame update
     void Start()
@@ -58,6 +61,7 @@ public class Alignment : MonoBehaviour
         laserTransform = laser.GetComponent<Transform>();
         virtualPositionA = referencePointA.transform.position; 
         virtualPositionB = referencePointB.transform.position;
+        startTrialPanel.SetActive(false);
     }
 
     // Update is called once per frame
@@ -108,8 +112,13 @@ public class Alignment : MonoBehaviour
 
                 // Rotate
                 Vector3 virtualVector = virtualPositionB - virtualPositionA;
+                // Debug.LogWarning(virtualPositionA.ToString("F4") + "a");
+                // Debug.LogWarning(virtualPositionB.ToString("F4") + "b");
+
                 Vector3 virtualVectorXZ = new Vector3(virtualVector.x, 0, virtualVector.z);
                 Vector3 realVector = realPositionB - realPositionA;
+                // Debug.LogWarning(realVector.ToString("F3") + "real vec");
+
                 Vector3 realVectorXZ = new Vector3(realVector.x, 0, realVector.z);
                 Quaternion rotationOffset = Quaternion.FromToRotation(virtualVectorXZ, realVectorXZ);
                 transform.rotation = rotationOffset * transform.rotation;
@@ -122,8 +131,10 @@ public class Alignment : MonoBehaviour
                 virtualPositionA = referencePointA.transform.position; 
                 virtualPositionB = referencePointB.transform.position;
 
+                // Debug.LogWarning((realPositionA-virtualPositionA).ToString("F4"));
+
                 // Translate 
-                transform.position = transform.position + (realPositionA-virtualPositionA);
+                transform.position = transform.position + new Vector3((realPositionA-virtualPositionA).x, 0, (realPositionA-virtualPositionA).z);
 
                 Debug.Log("Alignment done, push button 1 again to confirm, button 2 to restart");
                 
@@ -136,13 +147,19 @@ public class Alignment : MonoBehaviour
             // When button 1 pressed, stop and hide reference points
             if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch)){
                 calibratedDistance = Vector3.Distance(referencePointA.transform.position, referencePointB.transform.position);
-                Debug.LogWarning("Calibrated distance = " + calibratedDistance.ToString("F3"));
+                // Debug.LogWarning("Calibrated distance = " + calibratedDistance.ToString("F3"));
                 referencePointA.SetActive(false);
                 referencePointB.SetActive(false);
 
                 alignmentState = 3;
                 isCalibrated = true;
                 laser.SetActive(false);
+                startTrialPanel.SetActive(true);
+                passthroughLayer.textureOpacity = 0.0f;
+                passthroughLayer.enabled = false;
+                physicalCube.GetComponent<Renderer>().enabled = false;
+                physicalCube.SetActive(false);
+
             }
 
             // When button 2 pressed, start again
