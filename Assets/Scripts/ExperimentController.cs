@@ -5,6 +5,7 @@ using TMPro;
 using System.IO;
 using UnityEngine.SceneManagement;
 using Unity.VisualScripting;
+using Oculus.Interaction.Locomotion;
 
 public class ExperimentController : MonoBehaviour
 {
@@ -13,13 +14,13 @@ public class ExperimentController : MonoBehaviour
 
 
     [Header("Trial Info")]
-    public GameObject virtualCube;
-    public GameObject physicalCube;
+    public GameObject virtualCylinder;
+    public GameObject physicalCylinder;
     public Transform targetTransform;
     public GameObject arrow;
     public GameObject rotationCue;
     public GameObject outOfViewCue;
-    public GameObject ansCube;
+    public GameObject ansCylinder;
     public Material ansMaterial;
     public GameObject response;
     private float ansAlpha;
@@ -39,8 +40,7 @@ public class ExperimentController : MonoBehaviour
     public GameObject controller; 
     public LayerMask pointingMask;
     public GameObject rectify;
-    public GameObject virtualRectify;
-    public GameObject physicalRectify;
+    public GameObject circleRectify;
     public GameObject laser;
     private Transform laserTransform;
     public Vector3 hitPoint;
@@ -73,13 +73,15 @@ public class ExperimentController : MonoBehaviour
     
     // for creating virtual cube positions
     List<int> signs;
-    private int virtualCubeCount = 0;
+    List<int> signsForPhysicalTargets;
+    private int virtualCylinderCount = 0;
     private StreamWriter erfStudyWriter;
     
     private List<TrialData> dataList;
     private bool isDataSaved;
     public static float selfRotationDuration;
     private Vector3 responseVec;
+    private AudioSource pointingIndicator;
 
     void Start()
     {
@@ -93,10 +95,15 @@ public class ExperimentController : MonoBehaviour
 
         conditionArray = new List<int> {0, 1, 2, 3};
         signs = new List<int> {-1, 1};
+
+        signsForPhysicalTargets = new List<int> {-1, 1};
+        Helpers.Shuffle(signsForPhysicalTargets);
+
         laserTransform = laser.transform;
         restingTime = 5.1f;
         // startTrialPanelText.text = "Start Trial";
         instructionText.text = "Use your right controller to touch the panel and begin.";
+        pointingIndicator = GetComponent<AudioSource>();
 
         // initialize the first block
         Helpers.Shuffle(conditionArray);
@@ -104,14 +111,13 @@ public class ExperimentController : MonoBehaviour
         PrepareTrial();
 
         // passthroughLayer.enabled = false;
-        virtualCube.SetActive(false);
+        virtualCylinder.SetActive(false);
 
         rectify.SetActive(false);
-        virtualRectify.SetActive(false);
-        physicalRectify.SetActive(false);
+        circleRectify.SetActive(false);
         laser.SetActive(false);
         rotationCue.SetActive(false);
-        ansCube.SetActive(false);
+        ansCylinder.SetActive(false);
         response.SetActive(false);
         ansAlpha = 0.5f;
         ansMaterial.color = new Color(0, 1, 1, ansAlpha);
@@ -121,7 +127,7 @@ public class ExperimentController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Q))
         {
-            // InitializeVirtualCubeOnArc();
+            InitializePhysicalCylinderOnArc();
         }
         if (Input.GetKeyDown(KeyCode.W))
         {
@@ -179,11 +185,11 @@ public class ExperimentController : MonoBehaviour
                                     response.transform.position = responseVec;
                                     response.transform.LookAt(Vector3.zero);
 
-                                    ansCube.SetActive(true);
+                                    ansCylinder.SetActive(true);
                                     ansAlpha = 0.5f;
                                     ansMaterial.color = new Color(0, 1, 1, ansAlpha);
-                                    ansCube.transform.position = targetTransform.position;
-                                    ansCube.transform.LookAt(Vector3.zero);
+                                    ansCylinder.transform.position = targetTransform.position;
+                                    ansCylinder.transform.LookAt(Vector3.zero);
                                     StartCoroutine(ShowAns(2f));
                                 }
                                 // reset variables
@@ -224,11 +230,11 @@ public class ExperimentController : MonoBehaviour
                                     response.transform.position = responseVec;
                                     response.transform.LookAt(Vector3.zero);
 
-                                    ansCube.SetActive(true);
+                                    ansCylinder.SetActive(true);
                                     ansAlpha = 0.5f;
                                     ansMaterial.color = new Color(0, 1, 1, ansAlpha);
-                                    ansCube.transform.position = targetTransform.position;
-                                    ansCube.transform.LookAt(Vector3.zero);
+                                    ansCylinder.transform.position = targetTransform.position;
+                                    ansCylinder.transform.LookAt(Vector3.zero);
                                     StartCoroutine(ShowAns(2f));
                                 }
 
@@ -352,29 +358,28 @@ public class ExperimentController : MonoBehaviour
     IEnumerator ShowAns(float duration = 2f)
     {
         yield return new WaitForSeconds(duration);
-        ansCube.SetActive(false);
+        ansCylinder.SetActive(false);
         response.SetActive(false);
         yield return 0;
     }
 
-    public void InitializeVirtualCubePos()
+    public void InitializeVirtualCylinderOnArc()
     {
-        virtualCube.SetActive(true);
-        float z = Random.Range(1.0f, 3.0f);
-        float x_half = z * Mathf.Tan(rad);
-        float x = Random.Range(-x_half, x_half);
-        virtualCube.transform.position = new Vector3(x, 0.05f, z);
-        virtualCube.SetActive(false);
-    }
-
-    public void InitializeVirtualCubeOnArc()
-    {
-        float angle = 90f - Random.Range(10.0f, 45.0f) * signs[virtualCubeCount % 2];
+        float angle = 90f - Random.Range(10.0f, 45.0f) * signs[virtualCylinderCount % 2];
         float x = Alignment.calibratedDistance * Mathf.Cos(angle * Mathf.Deg2Rad);
         float z = Alignment.calibratedDistance * Mathf.Sin(angle * Mathf.Deg2Rad);
-        virtualCube.transform.position = new Vector3(x, 0.05f, z);
-        virtualCube.transform.LookAt(Vector3.zero);
-        virtualCubeCount += 1;
+        virtualCylinder.transform.position = new Vector3(x, 0f, z);
+        virtualCylinder.transform.LookAt(Vector3.zero);
+        virtualCylinderCount += 1;
+    }
+
+    public void InitializePhysicalCylinderOnArc()
+    {
+        /// we ask participants to turn to a specific angle then reveal passthrough view,
+        /// so they physical cylinder appears at different position on the arc in each trial.
+        /// 1) how many degrees do we need? in which direction (left or right?)
+        /// 2) rotate this to that angle
+
     }
 
     public void PrepareTrial()
@@ -403,6 +408,16 @@ public class ExperimentController : MonoBehaviour
             currentRotation = SelfRotation.rotate;
             currentTarget = Targets.physicalTarget;
         }
+
+        if (currentTarget == Targets.physicalTarget)
+        {
+            InitializePhysicalCylinderOnArc();
+        }
+        else
+        {
+            /// turn back to the center? or we use the current forward angle as center?
+        }
+
     }
 
     public IEnumerator ShowTargetAndRetention(float _showTimeStamp = 5.0f, float _retentionTimeStamp = 10.0f)
@@ -414,14 +429,14 @@ public class ExperimentController : MonoBehaviour
         // show a target
         if (currentTarget == Targets.virtualTarget)
         {
-            virtualCube.SetActive(true);
-            InitializeVirtualCubeOnArc();
-            targetTransform = virtualCube.transform;
+            virtualCylinder.SetActive(true);
+            InitializeVirtualCylinderOnArc();
+            targetTransform = virtualCylinder.transform;
         }
         else 
         {
-            physicalCube.SetActive(true);
-            targetTransform = physicalCube.transform;
+            physicalCylinder.SetActive(true);
+            targetTransform = physicalCylinder.transform;
             // show real-world using passthrough
             passthroughLayer.enabled = true;
             lerpTimeElapsed = 0;
@@ -431,11 +446,11 @@ public class ExperimentController : MonoBehaviour
         // retention starts
         if (currentTarget == Targets.virtualTarget)
         {
-            virtualCube.SetActive(false);
+            virtualCylinder.SetActive(false);
         }
         else
         {
-            physicalCube.SetActive(false);
+            physicalCylinder.SetActive(false);
             lerpTimeElapsed = 0;
             fadeInVR = true;
         }
@@ -447,25 +462,9 @@ public class ExperimentController : MonoBehaviour
         yield return new WaitUntil(() => currentTime > _retentionTimeStamp);
         // prepare for the pointing task
         beginTimeStamp = currentTime;
+        pointingIndicator.Play();
         rectify.SetActive(true);
-
-        /////////////////////////////////////
-        // this part we can reduce to one rectify because we want the same shape of virtual and physical targets.
-        if (currentTarget == Targets.virtualTarget)
-        {
-            virtualRectify.SetActive(true);
-            physicalRectify.SetActive(false);
-        }
-        else
-        {
-            
-            virtualRectify.SetActive(true);
-            physicalRectify.SetActive(false);
-            // virtualRectify.SetActive(false);
-            // physicalRectify.SetActive(true);
-        }
-        /////////////////////////////////////
-
+        circleRectify.SetActive(true);
         if (blockNum < 2) instructionText.text = "Once see the raycast, point\nto the target and confirm with Button A.";
 
         laser.SetActive(true);
@@ -501,20 +500,10 @@ public class ExperimentController : MonoBehaviour
         // arrow.SetActive(false);
         RotationCueControl.isCueComplete = false;
         rotationCue.SetActive(false);
+
+        pointingIndicator.Play();
         rectify.SetActive(true);
-        if (currentTarget == Targets.virtualTarget)
-        {
-            virtualRectify.SetActive(true);
-            physicalRectify.SetActive(false);
-        }
-        else
-        {
-            
-            virtualRectify.SetActive(true); // since we make both targets the same cube
-            physicalRectify.SetActive(false);
-            // virtualRectify.SetActive(false);
-            // physicalRectify.SetActive(true);
-        }
+        circleRectify.SetActive(true);
         laser.SetActive(true);
         if (blockNum < 2) instructionText.text = "Once see the raycast, point\nto the target and confirm with Button A.";
         isTestingMeasure = true;
