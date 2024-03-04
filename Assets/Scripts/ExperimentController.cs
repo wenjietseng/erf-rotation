@@ -6,6 +6,7 @@ using System.IO;
 using UnityEngine.SceneManagement;
 using Unity.VisualScripting;
 using Oculus.Interaction.Locomotion;
+using System;
 
 public class ExperimentController : MonoBehaviour
 {
@@ -365,7 +366,7 @@ public class ExperimentController : MonoBehaviour
 
     public void InitializeVirtualCylinderOnArc()
     {
-        float angle = 90f - Random.Range(10.0f, 45.0f) * signs[virtualCylinderCount % 2];
+        float angle = 90f - UnityEngine.Random.Range(10.0f, 45.0f) * signs[virtualCylinderCount % 2];
         float x = Alignment.calibratedDistance * Mathf.Cos(angle * Mathf.Deg2Rad);
         float z = Alignment.calibratedDistance * Mathf.Sin(angle * Mathf.Deg2Rad);
         virtualCylinder.transform.position = new Vector3(x, 0f, z);
@@ -672,6 +673,29 @@ public static class Helpers
         }
 
 
+    }
+
+    public static float RandomGaussian(float minValue = 0.0f, float maxValue = 1.0f)
+    {
+        //https://discussions.unity.com/t/normal-distribution-random/66530/4
+        float u, v, S;
+
+        do
+        {
+            u = 2.0f * UnityEngine.Random.value - 1.0f;
+            v = 2.0f * UnityEngine.Random.value - 1.0f;
+            S = u * u + v * v;
+        }
+        while (S >= 1.0f);
+
+        // Standard Normal Distribution
+        float std = u * Mathf.Sqrt(-2.0f * Mathf.Log(S) / S);
+
+        // Normal Distribution centered between the min and max value
+        // and clamped following the "three-sigma rule"
+        float mean = (minValue + maxValue) / 2.0f;
+        float sigma = (maxValue - mean) / 3.0f;
+        return Mathf.Clamp(std * sigma + mean, minValue, maxValue);
     }
 
     public static float DegreeToRadian(float deg)
