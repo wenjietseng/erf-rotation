@@ -12,11 +12,12 @@ using Unity.VisualScripting;
 public class ExpController : MonoBehaviour
 {
     /// <summary>
-    /// This script is for the 2nd version of ERF study. The goal is to observe how the real-world ERF changes
-    /// while using VR by manipulating 1) duration and 2) rotation.
-    /// The task shows two targets and the participant would have a baseline measure and a testing measure after a small waiting time with or without rotation.
-    /// Virtual targets {show two targets (stripes and dotted) -> retention 5s -> baseline measure -> interval for waiting or rotation -> testing measure -> rest for the next task}
-    /// Real-world targets [show two targets (blue and green) -> {Virtual targets} -> {Virtual targets} -> testing measure -> rest for the next trial] 
+    /// Blocked by physical target layout because we wanna easier procedure for collecting data.
+    /// Latin square
+    /// Overall, 32 trials, two rotations, recall virtual or physical targets 
+    /// Layout 1, 2, 3, 4
+    /// 
+    /// 
     /// </summary>
     // Start is called before the first frame update
 
@@ -32,6 +33,7 @@ public class ExpController : MonoBehaviour
     public List<GameObject> virtualTargetList;
     // for procedures
     public GameObject StartTrialPanel;
+    public GameObject rotationCue;
 
     private AudioSource pointingIndicator;
 
@@ -67,8 +69,14 @@ public class ExpController : MonoBehaviour
     public GameObject blueRecticle;
     public GameObject greenRecticle;
     public GameObject ans;
-    Vector3 firstResponseVec;
-    Vector3 secondResponseVec;
+    Vector3 vr_firstBaselineResponse;
+    Vector3 vr_secondBaselineResponse;
+    Vector3 vr_firstTestResponse;
+    Vector3 vr_secondTestResponse;
+    Vector3 rw_firstBaselineResponse;
+    Vector3 rw_secondBaselineResponse;
+    Vector3 rw_firstTestResponse;
+    Vector3 rw_secondTestResponse;
 
     Transform recticle;
     Ray ray;
@@ -83,8 +91,6 @@ public class ExpController : MonoBehaviour
     public GameObject instruction;
     public TMP_Text instructionText;
 
-
-    
     void Start()
     {
 
@@ -99,6 +105,7 @@ public class ExpController : MonoBehaviour
         dottedVirtualTarget.SetActive(false);
         stripesVirtualTarget.SetActive(false);
         laser.SetActive(false);
+        rotationCue.SetActive(false);
 
 
     }
@@ -115,6 +122,12 @@ public class ExpController : MonoBehaviour
             isTrialRunning = true;
             StartCoroutine(RunOneVirtualTrial());
         }
+
+        if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
+        {
+            isTrialRunning = true;
+            StartCoroutine(RunOneVirtualTrial());
+        }
         
         if (layoutBlockNum < 4)
         {
@@ -122,9 +135,10 @@ public class ExpController : MonoBehaviour
             {
                 if (trialNum < 4)
                 {
-                    if (isTrialRunning) // this seems to be physical trial
+                    if (isTrialRunning) // this seems to be physical trial, we might need to separate virtual and physical
                     {
                         currentTime += Time.deltaTime;
+                        
                         if (isBaselineMeasure)
                         {
                             // recall virtual targets
@@ -138,11 +152,11 @@ public class ExpController : MonoBehaviour
                                 {
                                     if (pairCounter == 0)
                                     {
-                                        firstResponseVec = hitPoint;
+                                        vr_firstBaselineResponse = hitPoint;
                                     }
                                     else
                                     {
-                                        secondResponseVec = hitPoint;
+                                        vr_secondBaselineResponse = hitPoint;
                                     }
                                     // show ans
                                     StartCoroutine(ShowAns());
@@ -164,11 +178,10 @@ public class ExpController : MonoBehaviour
                                         pairCounter = 0;
                                         // show rotation cue
                                         // after showing roatation cue, reset two response vectors
-                                        // StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f));
+                                        StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f)); // test without rotate
+                                        // StartCoroutine(ShowRotateOrientation(endTimeStamp + 5.0f, 120f)); // test with rotate
                                         Debug.LogWarning("Go to rotation and testing");
                                     }
-                                    
-
                                 }
                             }
                             else
@@ -177,9 +190,67 @@ public class ExpController : MonoBehaviour
                             }
                         }
 
+                        if (isTestingMeasure)
+                        {
+                            if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+                            {
+                                hitPoint = hit.point;
+                                UpdateLaser(hitPoint);
+                                UpdateReticle(hitPoint);   
 
+                                if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
+                                {
+                                    if (pairCounter == 0)
+                                    {
+                                        vr_firstTestResponse = hitPoint;
+                                    }
+                                    else
+                                    {
+                                        vr_secondTestResponse = hitPoint;
+                                    }
+                                    // show ans
+                                    StartCoroutine(ShowAns());
 
+                                    endTimeStamp = currentTime;
+                                    AddData();
 
+                                    // update recticle
+                                    pairCounter += 1;
+                                    beginTimeStamp = currentTime;
+
+                                    if (pairCounter == 2)
+                                    {
+                                        // reset variables
+                                        isTestingMeasure = false;
+                                        DisablePointing(); 
+                                        StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                                        pairCounter = 0;
+                                        this.transform.rotation = Quaternion.Euler(0, 0, 0);
+                                        isTrialRunning = false;
+                                        // restingTime = 0;
+
+                                        if (trialNum < 3) 
+                                        {
+                                            trialNum += 1;
+                                        }
+                                        else
+                                        {
+                                            trialNum = 0;
+                                            conditionBlockNum += 1;
+                                            // Helpers.Shuffle(conditionArray);
+                                            // Helpers.Shuffle(signs);
+                                        }
+                                        // PrepareTrial();
+
+                                        // StartTrialPanel.SetActive(true);
+                                    }
+                                }
+                            }   
+                            else
+                            {
+                                DisablePointing();
+                            }        
+                        }
                     }
                 }
 
@@ -188,8 +259,47 @@ public class ExpController : MonoBehaviour
 
     }
 
+    public void PrepareTrial()
+    {
+        // if (conditionArray[trialNum] == 0) 
+        // {
+        //     currentCondition = Conditions.virtualStatic;
+        //     currentRotation = SelfRotation.none;
+        //     currentTarget = Targets.virtualTarget;
+        // }
+        // else if (conditionArray[trialNum] == 1)
+        // {
+        //     currentCondition = Conditions.virtualRotate;
+        //     currentRotation = SelfRotation.rotate;
+        //     currentTarget = Targets.virtualTarget;
+        // }
+        // else if (conditionArray[trialNum] == 2)
+        // {
+        //     currentCondition = Conditions.physicalStatic;
+        //     currentRotation = SelfRotation.none;
+        //     currentTarget = Targets.physicalTarget;
+        // }
+        // else
+        // {
+        //     currentCondition = Conditions.physicalRotate;
+        //     currentRotation = SelfRotation.rotate;
+        //     currentTarget = Targets.physicalTarget;
+        // }
+
+        // if (currentTarget == Targets.physicalTarget)
+        // {
+        //     InitializePhysicalCylinderOnArc();
+        // }
+        // else
+        // {
+        //     /// turn back to the center? or we use the current forward angle as center?
+        // }
+    }
+
+
     private void AddData()
     {
+        /// Need to consider virtual/physical targets...
         // dataList.Add(new TrialData(participantID.ToString(), 
         //                     blockNum,
         //                     trialNum,
@@ -216,6 +326,7 @@ public class ExpController : MonoBehaviour
                         "EndTime: " +          endTimeStamp.ToString("F6")             + ", " +
                         "SelectedPos: " +      hitPoint.ToString("F6")                 + ", " +
                         "AnsPos: " +           virtualTargetList[pairCounter].transform.position.ToString("F6") + "," +
+                        "TargetName" +         virtualTargetList[pairCounter].name     + ", " +
                         "ControllerPos: " +    controller.transform.position.ToString("F6")   + ", "); 
     }
 
@@ -289,7 +400,7 @@ public class ExpController : MonoBehaviour
         stripesVirtualTarget.transform.position = stripesPos;
     }
 
-    public IEnumerator RunOneVirtualTrial(float _showTimeStamp = 5.0f, float _retentionTimeStamp = 10.0f, float rotation_amount = 0f)
+    public IEnumerator RunOneVirtualTrial(float _showTimeStamp = 5.0f, float _retentionTimeStamp = 10.0f)
 	{
         currentTime = 0.0f;
         // instructionText.text = "";
@@ -313,8 +424,44 @@ public class ExpController : MonoBehaviour
         pointingIndicator.Play();
 
         laser.SetActive(true);
-        Helpers.Shuffle(virtualTargetList);
+        Helpers.Shuffle(virtualTargetList); // randomized the first target to recall
         isBaselineMeasure = true;
+        yield return 0;
+    }
+
+    public IEnumerator ShowRotateOrientation(float _showTimeStamp, float rotation_amount = 0f)
+    {
+        rotationCue.SetActive(true);
+        if (currentRotation == SelfRotation.none)
+        {
+            this.transform.rotation = Quaternion.Euler(0, 0, 0); 
+        }
+        else
+        {
+            this.transform.rotation = Quaternion.Euler(0, this.transform.rotation.eulerAngles.y + rotation_amount, 0);
+            // need to show another audio cue or use a visual cue
+        }
+
+        yield return new WaitUntil(() => currentTime > _showTimeStamp && SimpleRotationCue.isCueComplete);
+        rotationCue.SetActive(false);
+        RotationCueControl.isCueComplete = false;
+        
+        // prepare for the pointing task
+        beginTimeStamp = currentTime;
+        pointingIndicator.Play();
+        laser.SetActive(true);
+        
+        // recall order depending which target had a better performance in the baseline measure
+        // can we make this one into a function?
+        float firstDistError = Vector3.Distance(virtualTargetList[0].transform.position, vr_firstBaselineResponse);
+        float secondDistError = Vector3.Distance(virtualTargetList[1].transform.position, vr_secondBaselineResponse);
+        if (firstDistError > secondDistError)
+        {
+            virtualTargetList.Reverse();
+        }
+
+        // if (blockNum < 2) instructionText.text = "Once see the raycast, point\nto the target and confirm with Button A.";
+        isTestingMeasure = true;
         yield return 0;
     }
 }
