@@ -8,6 +8,7 @@ using Oculus.Platform;
 using System;
 using Meta.WitAi;
 using Unity.VisualScripting;
+using Oculus.Platform.Models;
 
 public class ExpController : MonoBehaviour
 {
@@ -27,28 +28,50 @@ public class ExpController : MonoBehaviour
     [Header("Stimuli and Materials")]
     public GameObject bluePhysicalTarget;
     public GameObject greenPhysicalTarget;
+    public GameObject blueVirtualTarget;
+    public GameObject greenVirtualTarget;
     public GameObject dottedVirtualTarget;
     public GameObject stripesVirtualTarget;
     public List<GameObject> physicalTargetList;
     public List<GameObject> virtualTargetList;
+    public List<GameObject> decoyTargetList;
     // for procedures
     public GameObject StartTrialPanel;
     public GameObject rotationCue;
-
     private AudioSource pointingIndicator;
 
 
     [Header("Variables and Trials")]
-    public int layoutBlockNum = 0; // 4 layouts of physical pairs
+    // 4 layouts of physical targets
+    public int layoutBlockNum = 0; 
     public enum PhyTargetsLayouts {A = 0, B = 1, C = 2, D = 3};
+    /// <summary> a Latin square for 4 conditions
+    /// A C B D | P1, 5,  9, ... 
+    /// B A D C | P2, 6, 10, ...
+    /// C D A B | P3, 7, 11, ...
+    /// D B C A | P4, 8, 12, ...
+    /// </summary>
     public PhyTargetsLayouts currentPhyTargetsLayout;
-
-    public int conditionBlockNum = 0; // condition block repeat 3 times, each includes 4 combinations
-    public enum Conditions {durationShort_0 = 0, durationShort_120 = 1, durationLong_0 = 2, durationLong_120 = 3};
+    // 4 conditions, virtual/physical X static/rotate, four trials form one block. 8 blocks in total.
+    // In each physical layout, repeat 2 blocks
+    public int conditionBlockNum = 0; // 0, 1
+    public enum Conditions {virtualStatic = 0, virtualRotate = 1, physicalStatic = 2, physicalRotate = 3};
     public Conditions currentCondition;
     public List<int> conditionArray;
+    public enum SelfRotation {none = 0, rotate = 1};
+    public SelfRotation currentRotation;
+    public enum Targets {virtualTarget = 0, physicalTarget = 1}; // see the procedure :D
+    public Targets currentTarget;
 
-    public int trialNum = 0; // 0-4 (4 trials per condition block), 4 x 3 x 4 = 48 total
+    public int trialNum = 0; // 0-3 (4 trials per condition block), 4 x 2 x 4 = 32 total
+    public int decoyCount = 0;
+    public int decoyAmountThisTrial = 0;
+    public List<int> rotationAngleList;
+    // rotate direction
+    public int[] directionTable = new int[4] {0, 0, 0, 0}; // VirtualLeft, VirtualRight, PhysicalLeft, PhysicalRight
+    public int whichDirection;
+
+
     public float currentTime = 0;
     bool isTrialRunning;
     bool isBaselineMeasure;
@@ -82,10 +105,7 @@ public class ExpController : MonoBehaviour
     Ray ray;
     RaycastHit hit;
 
-    public enum SelfRotation {none = 0, rotate = 1};
-    public SelfRotation currentRotation;
-    public enum Targets {virtualTarget = 0, physicalTarget = 1}; // see the procedure :D
-    public Targets currentTarget;
+
     [Header("UI")]
 
     public GameObject instruction;
@@ -94,6 +114,7 @@ public class ExpController : MonoBehaviour
     void Start()
     {
 
+        /// When begin, show their participant no
         pointingIndicator = GetComponent<AudioSource>();
         laserTransform = laser.transform;
 
@@ -115,8 +136,64 @@ public class ExpController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Q))
         {
-            InitializeVirtualTargets();
+            decoyAmountThisTrial = (UnityEngine.Random.value < 0.5f) ? 2 : 3;
+            Debug.LogWarning(decoyAmountThisTrial);
+            if( decoyAmountThisTrial == 2) rotationAngleList = new List<int> {40, 80};
+            else rotationAngleList = new List<int> {0, 40, 80};
+            Helpers.Shuffle(rotationAngleList);
+            // if rotation == 0
+            //   if decoy == 2: rotationAngleList = new List<int> {0, 0};
+            //   else decoy == 3: rotationAngleList = new List<int> {0, 0, 0};
+            // else rotation == 120
+            //   if decoy == 2: rotationAngleList = new List<int> {40, 80};
+            //   else decoy == 3: rotationAngleList = new List<int> {0, 40, 80};
         }
+
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            // assume it's rotate
+            int VirOrPhy = (UnityEngine.Random.value < 0.5f) ? 0 : 1;
+            if (VirOrPhy == 0)
+            { // virtual
+
+                whichDirection = (UnityEngine.Random.value < 0.5f) ? 0 : 1; // left or right?
+                if (directionTable[whichDirection] < 4)
+                {
+                    directionTable[whichDirection] += 1;
+                }
+                else
+                {
+                    if (whichDirection == 0)
+                    {
+                        if (directionTable[whichDirection+1] < 4) directionTable[whichDirection+1] += 1;
+                    }
+                    else
+                    {
+                        if (directionTable[whichDirection-1] < 4) directionTable[whichDirection-1] += 1;
+                    }
+                }
+            }
+            else
+            {
+                whichDirection = (UnityEngine.Random.value < 0.5f) ? 0 : 1; // left or right?
+                if (directionTable[whichDirection+2] < 4)
+                {
+                    directionTable[whichDirection+2] += 1;
+                }
+                else
+                {
+                    if (whichDirection == 0)
+                    {
+                        if (directionTable[whichDirection+3] < 4) directionTable[whichDirection+3] += 1;
+                    }
+                    else
+                    {
+                        if (directionTable[whichDirection+1] < 4) directionTable[whichDirection+1] += 1;
+                    }
+                }
+            }
+        }
+
         if (Input.GetKeyDown(KeyCode.Space))
         {
             isTrialRunning = true;
