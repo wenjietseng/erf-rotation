@@ -31,13 +31,13 @@ public class QuestionnaireController : MonoBehaviour
     private int currentScale;
     public int currentItem;
     private StreamWriter questionnaireWriter;
-    public FadeEffect fadeEffect;
+    // public FadeEffect fadeEffect;
     
 
     void Start()
     {
-        fadeEffect = this.GetComponent<FadeEffect>();
-        fadeEffect.fadeInEffect();
+        // fadeEffect = this.GetComponent<FadeEffect>();
+        // fadeEffect.fadeInEffect();
 
 
         // get this part on Windows and Quest again...
@@ -77,13 +77,6 @@ public class QuestionnaireController : MonoBehaviour
 
     void Update()
     {
-
-        // if (Input.GetKeyDown(KeyCode.Q))
-        // {
-        //     fadeEffect.fadeInEffect();
-        // }
-
-
         if (!isStart)
         {
             if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch)) //(Input.GetKeyDown(KeyCode.A))

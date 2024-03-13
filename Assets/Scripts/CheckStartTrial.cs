@@ -9,6 +9,7 @@ public class CheckStartTrial : MonoBehaviour
         if (other.name == "RightOVRControllerPrefab")
         {
             ExperimentController.isStartTrialPanelTriggered = true;
+            ExpController.isStartTrialPanelTriggered = true;
         }
     }
 

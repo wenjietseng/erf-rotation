@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using TMPro;
 using System.IO;
+using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
 using Unity.VisualScripting;
 using Oculus.Interaction.Locomotion;
 using System;
@@ -62,9 +62,9 @@ public class ExperimentController : MonoBehaviour
     bool isTestingMeasure;
     float beginTimeStamp;
     float endTimeStamp;
-    Ray ray;
+    // Ray ray;
     RaycastHit hit;
-    float rad = 55.0f * Mathf.Deg2Rad; // Degrees-to-radians conversion constant (Read Only). This is equal to (PI * 2) / 360.
+    // float rad = 55.0f * Mathf.Deg2Rad; // Degrees-to-radians conversion constant (Read Only). This is equal to (PI * 2) / 360.
     bool fadeInRW;
     bool fadeInVR;
     float lerpTimeElapsed = 0;
@@ -657,49 +657,3 @@ public class ExperimentController : MonoBehaviour
     }
 }
 
-public static class Helpers
-{
-    public static void Shuffle<T>(this IList<T> list)
-    {
-        // https://forum.unity.com/threads/randomize-array-in-c.86871/
-        // https://stackoverflow.com/questions/273313/randomize-a-listt
-        // Knuth shuffle algorithm :: courtesy of Wikipedia :)
-        for (int n = 0; n < list.Count; n++)
-        {
-            T tmp = list[n];
-            int r = UnityEngine.Random.Range(n, list.Count);
-            list[n] = list[r];
-            list[r] = tmp;
-        }
-
-
-    }
-
-    public static float RandomGaussian(float minValue = 0.0f, float maxValue = 1.0f)
-    {
-        //https://discussions.unity.com/t/normal-distribution-random/66530/4
-        float u, v, S;
-
-        do
-        {
-            u = 2.0f * UnityEngine.Random.value - 1.0f;
-            v = 2.0f * UnityEngine.Random.value - 1.0f;
-            S = u * u + v * v;
-        }
-        while (S >= 1.0f);
-
-        // Standard Normal Distribution
-        float std = u * Mathf.Sqrt(-2.0f * Mathf.Log(S) / S);
-
-        // Normal Distribution centered between the min and max value
-        // and clamped following the "three-sigma rule"
-        float mean = (minValue + maxValue) / 2.0f;
-        float sigma = (maxValue - mean) / 3.0f;
-        return Mathf.Clamp(std * sigma + mean, minValue, maxValue);
-    }
-
-    public static float DegreeToRadian(float deg)
-    {
-        return deg * Mathf.PI / 180;
-    }
-}

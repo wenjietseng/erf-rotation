@@ -1,14 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor;
-using UnityEngine;
-using TMPro;
 using System.IO;
-using Oculus.Platform;
-using System;
-using Meta.WitAi;
-using Unity.VisualScripting;
-using Oculus.Platform.Models;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using TMPro;
+using System.Drawing;
 
 public class ExpController : MonoBehaviour
 {
@@ -24,6 +20,12 @@ public class ExpController : MonoBehaviour
 
     [Header("User Info")]
     public int participantID = 0;
+    public enum BuildFor {Practice = 0, FormalStudy = 1};
+    public BuildFor buildFor;
+    public string dataFilePath;
+    private StreamWriter erfStudyWriter;
+    private List<PointingData> dataList;
+    private bool isDataSaved;
 
     [Header("Conditions")]
     public int layoutBlockNum = 0; 
@@ -38,7 +40,6 @@ public class ExpController : MonoBehaviour
                                              {2, 1, 4, 3},
                                              {3, 4, 1, 2},
                                              {4, 2, 3, 1}};
-
     public enum PhyTargetsLayouts {A = 1, B = 2, C = 3, D = 4};
     public PhyTargetsLayouts currentPhyTargetsLayout;
     // 4 conditions, virtual/physical X static/rotate, four trials form one block. 8 blocks in total.
@@ -51,7 +52,6 @@ public class ExpController : MonoBehaviour
     public SelfRotation currentRotation;
     public enum Targets {virtualTarget = 0, physicalTarget = 1}; // see the procedure :D
     public Targets currentTarget;
-
     public int trialNum = 0; // 0-3 (4 trials per condition block), 4 x 2 x 4 = 32 total
     public int decoyNum = 0;
     public int decoyAmountThisTrial = 0;
@@ -71,6 +71,7 @@ public class ExpController : MonoBehaviour
     float beginTimeStamp;
     float endTimeStamp;
     int pairCounter = 0;
+    public static bool isStartTrialPanelTriggered;
 
     [Header("Stimuli and Materials")]
     public GameObject bluePhysicalTarget;
@@ -112,16 +113,17 @@ public class ExpController : MonoBehaviour
     Vector3 decoy_secondTestResponse;
     Vector3 responsePos;
     Transform reticle;
-    Ray ray;
     RaycastHit hit;
 
-    [Header("UI")]
-    public GameObject instruction;
-    public TMP_Text instructionText;
 
     void Start()
     {
-        /// When begin, show their participant no
+        string note = (buildFor == BuildFor.Practice) ? "_Practice" : "_FormalStudy";
+        dataFilePath = Helpers.CreateDataPath(participantID, note);
+        erfStudyWriter = new StreamWriter(dataFilePath, true);
+        dataList = new List<PointingData>();
+
+        /// When begin, show their participant no and practice
         pointingIndicator = GetComponent<AudioSource>();
         laserTransform = laser.transform;
 
@@ -149,28 +151,28 @@ public class ExpController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
-        if (Input.GetKeyDown(KeyCode.W))
+        if (Input.GetKeyDown(KeyCode.Q))
         {
+
         }
 
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            isTrialRunning = true;
-            StartCoroutine(ShowTargetsAndRetention());
-        }
-        
-        if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
-        {
 
         }
         
+        if (isStartTrialPanelTriggered) // && alignment..
+        {
+            isStartTrialPanelTriggered = false;
+            StartTrialPanel.SetActive(false);
+            StartCoroutine(ShowTargetsAndRetention());
+            isTrialRunning = true;
+        }        
 
         if (layoutBlockNum < 4)
         {
             if (conditionBlockNum < 2)
             {
-                // touch starting panel, or use keyboard imitate
                 if (isTrialRunning)
                 {
                     currentTime += Time.deltaTime;
@@ -190,7 +192,7 @@ public class ExpController : MonoBehaviour
                                 endTimeStamp = currentTime;
                                 AddData();
 
-                                StartCoroutine(ShowAns()); //practice...? how to fix?
+                                if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns());
 
                                 // prepare the next target
                                 if (pairCounter == 0)
@@ -209,7 +211,7 @@ public class ExpController : MonoBehaviour
                                     // reset variables
                                     isBaselineMeasure = false;
                                     DisablePointing();
-                                    StartCoroutine(RemoveResponse(1f)); // practice 1s, formal study 0s
+                                    StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
                                     pairCounter = 0;
                                     isDecoyRunning = true;
 
@@ -241,7 +243,7 @@ public class ExpController : MonoBehaviour
                                     endTimeStamp = currentTime;
                                     AddData();
 
-                                    StartCoroutine(ShowAns()); //practice...? how to fix?
+                                    if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
 
                                     // prepare the next target
                                     if (pairCounter == 0)
@@ -260,7 +262,7 @@ public class ExpController : MonoBehaviour
                                         // reset variables
                                         isDecoyBaseline = false;
                                         DisablePointing();
-                                        StartCoroutine(RemoveResponse(1f)); // practice 1s, formal study 0s
+                                        StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
                                         pairCounter = 0;
 
                                         StartCoroutine(ShowRotationCue(endTimeStamp, whichDirection, rotationAngleList[decoyNum]));
@@ -284,7 +286,7 @@ public class ExpController : MonoBehaviour
                                     endTimeStamp = currentTime;
                                     AddData();
 
-                                    StartCoroutine(ShowAns()); //practice...? how to fix?
+                                    if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
 
                                     // prepare the next target
                                     if (pairCounter == 0)
@@ -303,7 +305,7 @@ public class ExpController : MonoBehaviour
                                         // reset variables
                                         isDecoyTesting = false;
                                         DisablePointing();
-                                        StartCoroutine(RemoveResponse(1f)); // practice 1s, formal study 0s
+                                        StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
                                         pairCounter = 0;
                                         decoyNum += 1;
                                         
@@ -337,7 +339,7 @@ public class ExpController : MonoBehaviour
                                 endTimeStamp = currentTime;
                                 AddData();
 
-                                StartCoroutine(ShowAns()); //practice...? how to fix?
+                                if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
 
                                 // prepare the next target
                                 if (pairCounter == 0)
@@ -356,7 +358,7 @@ public class ExpController : MonoBehaviour
                                     // reset variables
                                     isTestingMeasure = false;
                                     DisablePointing();
-                                    StartCoroutine(RemoveResponse(1f)); // practice 1s, formal study 0s
+                                    StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
                                     pairCounter = 0;
                                     this.transform.rotation = Quaternion.Euler(0, 0, 0);
                                     
@@ -373,7 +375,8 @@ public class ExpController : MonoBehaviour
                                         Helpers.Shuffle(conditionArray);
                                     }
                                     PrepareCondition();
-                                    // StartTrialPanel.SetActive(true);
+                                    StartTrialPanel.SetActive(true);
+                                    
                                     // go back to the starting orientation
                                 }
                             }
@@ -391,11 +394,20 @@ public class ExpController : MonoBehaviour
                     PreparePhyTargetsLayout();
                     InitializePhysicalTargets();
                 }
+                // add a countdown like 2 minutes so the experimenter can change the layout.
+                // show the starting panel after 2 minutes
+                // "Please tell the experimenter it's taking a break and wait for the experimenter's instruction to proceed."
             }
         }
         else
         {
-            Debug.LogWarning("End of the study");
+            if (!isDataSaved)
+            {
+                Debug.LogWarning("End of the study");
+                StartTrialPanel.SetActive(false);
+                StartCoroutine(WriteDataList());
+                isDataSaved = true;
+            }
         }
     }
 
@@ -507,59 +519,6 @@ public class ExpController : MonoBehaviour
                         "Decoy: " +                 decoyAmountThisTrial                    + ", " );
     }
 
-    private void AddData()
-    {
-        // this part could be together with ShowAns...
-        if (isDecoyRunning) groundTruth = decoyTargetList[pairCounter];
-        else
-        {
-            if (currentTarget == Targets.virtualTarget) groundTruth = virtualTargetList[pairCounter];
-            else groundTruth = physicalTargetList[pairCounter];
-        }
-
-        // dataList.Add(new TrialData(participantID.ToString(), 
-        //                     blockNum,
-        //                     trialNum,
-        //                     currentCondition.ToString(),
-        //                     currentRotation.ToString(),
-        //                     currentTarget.ToString(),
-        //                     isBaselineMeasure,
-        //                     beginTimeStamp,
-        //                     endTimeStamp,
-        //                     targetTransform.position,
-        //                     responseVec,
-        //                     controller.transform.position));
-        // record baseline measure (two time stamps, target position, selected position)
-
-        Debug.LogWarning(// Response Info
-                        layoutBlockNum*8 + conditionBlockNum*4 + trialNum                                   + ", " +
-                        "Participant: P" +          participantID.ToString()                                + ", " +
-                        "Layout Block Num: " +      layoutBlockNum                                          + ", " +
-                        "Condition Block Num: " +   conditionBlockNum                                       + ", " +
-                        "Trial: " +                 trialNum                                                + ", " +
-                        "Layout Type: " +           currentPhyTargetsLayout.ToString()                      + ", " +
-                        "Condition: " +             currentCondition.ToString()                             + ", " +
-                        "TargetType: " +            currentTarget.ToString()                                + ", " +
-                        "PairCount: " +             pairCounter.ToString()                                  + ", " +
-                        "Self-Rotation: " +         currentRotation.ToString()                              + ", " +
-                        "RotateDirection: " +       whichDirection                                          + ", " +
-                        "DecoyAmount: " +           decoyAmountThisTrial                                    + ", " +
-                        "CurrentDecoy: " +          decoyNum                                                + ", " +
-                        "RotationAmount: " +        rotationAngleList[decoyNum]                             + ", " +
-                        "Baseline: " +              isBaselineMeasure                                       + ", " +
-                        "Testing: "  +              isTestingMeasure                                        + ", " +
-                        "DecoyBaseline: " +         isDecoyBaseline                                         + ", " +
-                        "DecoyTesting: "  +         isDecoyTesting                                          + ", " +
-                        // RT
-                        "BeginTime: " +             beginTimeStamp.ToString("F6")                           + ", " +
-                        "EndTime: " +               endTimeStamp.ToString("F6")                             + ", " +
-                        // position error
-                        "SelectedPos: " +           responsePos.ToString("F6")                              + ", " +
-                        "AnsPos: " +                groundTruth.transform.position.ToString("F6")           + ", " +
-                        "TargetName: " +            groundTruth.name                                        + ", " +
-                        "ControllerPos: " +         controller.transform.position.ToString("F6")            + "\n"); 
-    }
-
     private void DisablePointing()
     {
         // make sure they won't be visible directly when displaying 
@@ -663,8 +622,9 @@ public class ExpController : MonoBehaviour
 
     }
 
-    private IEnumerator RemoveResponse(float duration = 1f)
+    private IEnumerator RemoveResponse()
     {
+        float duration = (buildFor == BuildFor.Practice) ? 1f : 0f;
         yield return new WaitForSeconds(duration);
         dottedReticle.transform.position = reticleGameObjects.transform.position;
         stripesReticle.transform.position = reticleGameObjects.transform.position;
@@ -850,5 +810,247 @@ public class ExpController : MonoBehaviour
         {
             list.Reverse();
         }
+    }
+
+    private IEnumerator WriteDataList()
+    {
+        erfStudyWriter.Write(
+            "trialID"                       + "," +
+            "Participant"                   + "," +
+            "LayoutBlockNum"                + "," +
+            "ConditionBlockNum"             + "," +
+            "TrialNum"                      + "," +
+            "LayoutType"                    + "," +
+            "Condition"                     + "," +
+            "TargetType"                    + "," +
+            "PairCount"                     + "," +
+            "SelfRotation"                  + "," +
+            "RotateDirection"               + "," +
+            "DecoyAmount"                   + "," +
+            "CurrentDecoy"                  + "," +
+            "RotationAmount"                + "," +
+            "Baseline"                      + "," +
+            "Testing"                       + "," +
+            "DecoyBaseline"                 + "," +
+            "DecoyTesting"                  + "," +
+            "BeginTime"                     + "," + // RT
+            "EndTime"                       + "," +
+            "ResponsePos_X"                 + "," + // position error
+            "ResponsePos_Y"                 + "," + 
+            "ResponsePos_Z"                 + "," + 
+            "AnsPos_X"                      + "," + 
+            "AnsPos_Y"                      + "," + 
+            "AnsPos_Z"                      + "," + 
+            "TargetName"                    + "," +
+            "ControllerPos_X"               + "," + 
+            "ControllerPos_Y"               + "," + 
+            "ControllerPoss_Z"              + "\n"); 
+
+        foreach (var data in dataList)
+        {
+            erfStudyWriter.Write(
+                "P" + data.participantID.ToString()        + "," +
+                data.trialID.ToString()                    + "," +
+                data.layoutBlockNum                        + "," +
+                data.conditionBlockNum                     + "," +
+                data.trialNum                              + "," +
+                data.currentPhyTargetsLayout               + "," +
+                data.currentCondition                      + "," +
+                data.currentTarget                         + "," +
+                data.pairCounter                           + "," +
+                data.currentRotation                       + "," +
+                data.whichDirection                        + "," +
+                data.decoyAmountThisTrial                  + "," +
+                data.decoyNum                              + "," +
+                data.rotationAmount                        + "," +
+                data.isBaselineMeasure                     + "," +
+                data.isTestingMeasure                      + "," +
+                data.isDecoyBaseline                       + "," +
+                data.isDecoyTesting                        + "," +
+                data.beginTime.ToString("F6")              + "," +
+                data.endTime.ToString("F6")                + "," +
+                data.responsePos.x.ToString("F6")          + "," +
+                data.responsePos.y.ToString("F6")          + "," +
+                data.responsePos.z.ToString("F6")          + "," +
+                data.groundTruthPos.x.ToString("F6")       + "," +
+                data.groundTruthPos.y.ToString("F6")       + "," +
+                data.groundTruthPos.z.ToString("F6")       + "," +
+                data.groundTruthName                       + "," +
+                data.controllerPos.x.ToString("F6")        + "," +
+                data.controllerPos.y.ToString("F6")        + "," +
+                data.controllerPos.z.ToString("F6")        + "\n"
+            );
+        }
+
+        erfStudyWriter.Flush();
+        erfStudyWriter.Close();
+        // Change Scene
+        SceneManager.LoadScene("ERFv2_Questionnaire");
+        yield return 0;
+    }
+
+    private void AddData()
+    {
+        if (isDecoyRunning) groundTruth = decoyTargetList[pairCounter];
+        else
+        {
+            if (currentTarget == Targets.virtualTarget) groundTruth = virtualTargetList[pairCounter];
+            else groundTruth = physicalTargetList[pairCounter];
+        }
+
+        int trialID = layoutBlockNum*8 + conditionBlockNum*4 + trialNum;
+
+        dataList.Add(new PointingData(participantID , trialID, layoutBlockNum, conditionBlockNum, trialNum,
+            currentPhyTargetsLayout.ToString(), currentCondition.ToString(), currentTarget.ToString(), pairCounter,
+            currentRotation.ToString(), whichDirection, decoyAmountThisTrial, decoyNum, rotationAngleList[decoyNum],
+            isBaselineMeasure, isTestingMeasure, isDecoyBaseline, isDecoyTesting, beginTimeStamp, endTimeStamp, 
+            responsePos, groundTruth.transform.position, groundTruth.name, controller.transform.position));
+
+        Debug.LogWarning(// Response Info
+            trialID                                                                             + ", " +
+            "Participant: P" +          participantID.ToString()                                + ", " +
+            "Layout Block Num: " +      layoutBlockNum                                          + ", " +
+            "Condition Block Num: " +   conditionBlockNum                                       + ", " +
+            "Trial: " +                 trialNum                                                + ", " +
+            "Layout Type: " +           currentPhyTargetsLayout.ToString()                      + ", " +
+            "Condition: " +             currentCondition.ToString()                             + ", " +
+            "TargetType: " +            currentTarget.ToString()                                + ", " +
+            "PairCount: " +             pairCounter                                             + ", " +
+            "Self-Rotation: " +         currentRotation.ToString()                              + ", " +
+            "RotateDirection: " +       whichDirection                                          + ", " +
+            "DecoyAmount: " +           decoyAmountThisTrial                                    + ", " +
+            "CurrentDecoy: " +          decoyNum                                                + ", " +
+            "RotationAmount: " +        rotationAngleList[decoyNum]                             + ", " +
+            "Baseline: " +              isBaselineMeasure                                       + ", " +
+            "Testing: "  +              isTestingMeasure                                        + ", " +
+            "DecoyBaseline: " +         isDecoyBaseline                                         + ", " +
+            "DecoyTesting: "  +         isDecoyTesting                                          + ", " +
+            // RT
+            "BeginTime: " +             beginTimeStamp.ToString("F6")                           + ", " +
+            "EndTime: " +               endTimeStamp.ToString("F6")                             + ", " +
+            // position error
+            "ResponsePos: " +           responsePos.ToString("F6")                              + ", " +
+            "AnsPos: " +                groundTruth.transform.position.ToString("F6")           + ", " +
+            "TargetName: " +            groundTruth.name                                        + ", " +
+            "ControllerPos: " +         controller.transform.position.ToString("F6")            + "\n"); 
+    }
+
+    public struct PointingData
+    {
+        public int participantID;
+        public int trialID;
+        public int layoutBlockNum;
+        public int conditionBlockNum;
+        public int trialNum;
+        public string currentPhyTargetsLayout;
+        public string currentCondition;
+        public string currentTarget;
+        public int pairCounter;
+        public string currentRotation;
+        public int whichDirection;
+        public int decoyAmountThisTrial;
+        public int decoyNum;
+        public int rotationAmount;
+        public bool isBaselineMeasure;
+        public bool isTestingMeasure;
+        public bool isDecoyBaseline;
+        public bool isDecoyTesting;
+        public float beginTime;
+        public float endTime;
+        public Vector3 responsePos;
+        public Vector3 groundTruthPos;
+        public string groundTruthName;
+        public Vector3 controllerPos;
+
+        public PointingData(int participantID, int trialID, int layoutBlockNum, int conditionBlockNum, int trialNum,
+                            string currentPhyTargetsLayout, string currentCondition, string currentTarget, int pairCounter,
+                            string currentRotation, int whichDirection, int decoyAmountThisTrial, int decoyNum, int rotationAmount,
+                            bool isBaselineMeasure, bool isTestingMeasure, bool isDecoyBaseline, bool isDecoyTesting,
+                            float beginTime, float endTime, Vector3 responsePos, Vector3 groundTruthPos, string groundTruthName, Vector3 controllerPos)
+        {
+            this.participantID = participantID;
+            this.trialID = trialID;
+            this.layoutBlockNum = layoutBlockNum;
+            this.conditionBlockNum = conditionBlockNum;
+            this.trialNum = trialNum;
+            this.currentPhyTargetsLayout = currentPhyTargetsLayout;
+            this.currentCondition = currentCondition;
+            this.currentTarget = currentTarget;
+            this.pairCounter = pairCounter;
+            this.currentRotation = currentRotation;
+            this.whichDirection = whichDirection;
+            this.decoyAmountThisTrial = decoyAmountThisTrial;
+            this.decoyNum = decoyNum;
+            this.rotationAmount = rotationAmount;
+            this.isBaselineMeasure = isBaselineMeasure;
+            this.isTestingMeasure = isTestingMeasure;
+            this.isDecoyBaseline = isDecoyBaseline;
+            this.isDecoyTesting = isDecoyTesting;
+            this.beginTime = beginTime;
+            this.endTime = endTime;
+            this.responsePos = responsePos;
+            this.groundTruthPos = groundTruthPos;
+            this.groundTruthName = groundTruthName;
+            this.controllerPos = controllerPos;
+        }
+    }
+}
+
+public static class Helpers
+{
+    public static void Shuffle<T>(this IList<T> list)
+    {
+        // https://forum.unity.com/threads/randomize-array-in-c.86871/
+        // https://stackoverflow.com/questions/273313/randomize-a-listt
+        // Knuth shuffle algorithm :: courtesy of Wikipedia :)
+        for (int n = 0; n < list.Count; n++)
+        {
+            T tmp = list[n];
+            int r = UnityEngine.Random.Range(n, list.Count);
+            list[n] = list[r];
+            list[r] = tmp;
+        }
+    }
+
+    public static string CreateDataPath(int id, string note = "")
+    {
+        string fileName = "P" + id.ToString() + note + "_erf.csv";
+#if UNITY_EDITOR
+        return Application.dataPath + "/Data/" + fileName;
+#elif UNITY_ANDROID
+        return Application.persistentDataPath + fileName;
+#elif UNITY_IPHONE
+        return Application.persistentDataPath + "/" + fileName;
+#else
+        return Application.dataPath + "/" + fileName;
+#endif
+    }
+
+    public static float RandomGaussian(float minValue = 0.0f, float maxValue = 1.0f)
+    {
+        //https://discussions.unity.com/t/normal-distribution-random/66530/4
+        float u, v, S;
+
+        do
+        {
+            u = 2.0f * UnityEngine.Random.value - 1.0f;
+            v = 2.0f * UnityEngine.Random.value - 1.0f;
+            S = u * u + v * v;
+        }
+        while (S >= 1.0f);
+
+        // Standard Normal Distribution
+        float std = u * Mathf.Sqrt(-2.0f * Mathf.Log(S) / S);
+
+        // Normal Distribution centered between the min and max value
+        // and clamped following the "three-sigma rule"
+        float mean = (minValue + maxValue) / 2.0f;
+        float sigma = (maxValue - mean) / 3.0f;
+        return Mathf.Clamp(std * sigma + mean, minValue, maxValue);
+    }
+
+    public static float DegreeToRadian(float deg)
+    {
+        return deg * Mathf.PI / 180;
     }
 }
