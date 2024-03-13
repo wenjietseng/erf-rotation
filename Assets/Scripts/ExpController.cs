@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
 using System.Drawing;
+using UnityEditor.Experimental.GraphView;
 
 public class ExpController : MonoBehaviour
 {
@@ -62,6 +63,7 @@ public class ExpController : MonoBehaviour
 
     [Header("Procedures")]
     public float currentTime = 0;
+    public float restingDuration = 60f;
     bool isTrialRunning;
     bool isBaselineMeasure;
     bool isTestingMeasure;
@@ -70,6 +72,7 @@ public class ExpController : MonoBehaviour
     bool isDecoyTesting;
     float beginTimeStamp;
     float endTimeStamp;
+    float restingTime;
     int pairCounter = 0;
     public static bool isStartTrialPanelTriggered;
 
@@ -84,7 +87,6 @@ public class ExpController : MonoBehaviour
     public List<GameObject> virtualTargetList;
     public List<GameObject> decoyTargetList;
     public GameObject decoys;
-    public GameObject StartTrialPanel;
     public GameObject rotationCue;
     public AudioSource turnLeftSound;
     public AudioSource turnRightSound;
@@ -115,6 +117,19 @@ public class ExpController : MonoBehaviour
     Transform reticle;
     RaycastHit hit;
 
+    [Header("UI")]
+    public GameObject StartTrialPanel;
+    public TMP_Text textOnStartPanel;
+    public TMP_Text instructions;
+
+    [Header("Passthrough")]
+    public OVRPassthroughLayer passthroughLayer;
+    public bool fadeInRW;
+    public bool fadeInVR;
+    float lerpTimeElapsed = 0;
+    float lerpDuration = 1;
+
+    
 
     void Start()
     {
@@ -156,12 +171,14 @@ public class ExpController : MonoBehaviour
 
         }
 
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.W))
         {
 
         }
+
+        PassthroughControl();
         
-        if (isStartTrialPanelTriggered) // && alignment..
+        if (isStartTrialPanelTriggered  && Alignment.isCalibrated) 
         {
             isStartTrialPanelTriggered = false;
             StartTrialPanel.SetActive(false);
@@ -216,13 +233,13 @@ public class ExpController : MonoBehaviour
                                     isDecoyRunning = true;
 
                                     StartCoroutine(ShortPauseBeforeNextDecoy(5f));
-                                    // StartCoroutine(ShowDecoyTargetsAndRetention(endTimeStamp+7f, endTimeStamp+12f));
                                 }
                             }
                         }
                         else
                         {
                             DisablePointing();
+                            if (reticle != null) reticle.position = reticleGameObjects.transform.position;
                         }
                     }
 
@@ -268,6 +285,11 @@ public class ExpController : MonoBehaviour
                                         StartCoroutine(ShowRotationCue(endTimeStamp, whichDirection, rotationAngleList[decoyNum]));
                                     }
                                 }
+                            }
+                            else
+                            {
+                                DisablePointing();
+                                if (reticle != null) reticle.position = reticleGameObjects.transform.position;
                             }
                         }
 
@@ -320,8 +342,12 @@ public class ExpController : MonoBehaviour
                                 }
 
                             }
+                            else
+                            {
+                                DisablePointing();
+                                if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                            }
                         }
-                        // decoy (based on decoyNum) and rotate (if any)
                     }
                     
                     if (isTestingMeasure)
@@ -376,14 +402,35 @@ public class ExpController : MonoBehaviour
                                     }
                                     PrepareCondition();
                                     StartTrialPanel.SetActive(true);
-                                    
+                                    instructions.text = "";
+                                    textOnStartPanel.text = layoutBlockNum*8 + conditionBlockNum*4 + trialNum + "/32\nStart Next Trial";
                                     // go back to the starting orientation
                                 }
                             }
                         }
+                        else
+                        {
+                            DisablePointing();
+                            if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                        }
                     }
                 }
-                // resting time for participants
+
+                if (restingTime > 0)
+                {
+                    restingTime -= Time.deltaTime;
+                    textOnStartPanel.text = restingTime.ToString("F0");
+                }
+                else
+                {
+                    if (StartTrialPanel.activeSelf)
+                    {
+                        instructions.text = "";
+                        if ((layoutBlockNum*8 + conditionBlockNum*4 + trialNum) == 0) textOnStartPanel.text = "P" + participantID.ToString() + ", " + buildFor.ToString();
+                        else textOnStartPanel.text = layoutBlockNum*8 + conditionBlockNum*4 + trialNum + "/32\nStart Next Trial";
+                        StartTrialPanel.GetComponent<BoxCollider>().enabled = true;
+                    }
+                }
             }
             else
             {
@@ -393,10 +440,10 @@ public class ExpController : MonoBehaviour
                 {
                     PreparePhyTargetsLayout();
                     InitializePhysicalTargets();
+                    instructions.text = "Please tell the experimenter it's taking a break\nand wait for the experimenter's instruction.";
+                    restingTime = restingDuration;
+                    StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
                 }
-                // add a countdown like 2 minutes so the experimenter can change the layout.
-                // show the starting panel after 2 minutes
-                // "Please tell the experimenter it's taking a break and wait for the experimenter's instruction to proceed."
             }
         }
         else
@@ -407,6 +454,36 @@ public class ExpController : MonoBehaviour
                 StartTrialPanel.SetActive(false);
                 StartCoroutine(WriteDataList());
                 isDataSaved = true;
+            }
+        }
+    }
+
+    private void PassthroughControl()
+    {
+        if (fadeInRW)
+        {
+            if (lerpTimeElapsed < lerpDuration)
+            {
+                passthroughLayer.textureOpacity = Mathf.Lerp(0, 1,  lerpTimeElapsed / lerpDuration);
+                lerpTimeElapsed += Time.deltaTime;
+            }
+            else
+            {
+                fadeInRW = false;
+            }
+        }
+
+        if (fadeInVR)
+        {
+            if (lerpTimeElapsed < lerpDuration)
+            {
+                passthroughLayer.textureOpacity = Mathf.Lerp(1, 0,  lerpTimeElapsed / lerpDuration);
+                lerpTimeElapsed += Time.deltaTime;
+            }
+            else
+            {
+                fadeInVR = false;
+                passthroughLayer.enabled = false;
             }
         }
     }
@@ -575,6 +652,17 @@ public class ExpController : MonoBehaviour
         reticle.position = hitPoint;
     }
 
+    private IEnumerator RemoveResponse()
+    {
+        float duration = (buildFor == BuildFor.Practice) ? 1f : 0f;
+        yield return new WaitForSeconds(duration);
+        dottedReticle.transform.position = reticleGameObjects.transform.position;
+        stripesReticle.transform.position = reticleGameObjects.transform.position;
+        blueReticle.transform.position = reticleGameObjects.transform.position;
+        greenReticle.transform.position = reticleGameObjects.transform.position;
+        yield return 0;
+    }
+
     private IEnumerator ShowAns(float duration = 1f)
     {
         GameObject tempAns;
@@ -622,22 +710,12 @@ public class ExpController : MonoBehaviour
 
     }
 
-    private IEnumerator RemoveResponse()
-    {
-        float duration = (buildFor == BuildFor.Practice) ? 1f : 0f;
-        yield return new WaitForSeconds(duration);
-        dottedReticle.transform.position = reticleGameObjects.transform.position;
-        stripesReticle.transform.position = reticleGameObjects.transform.position;
-        blueReticle.transform.position = reticleGameObjects.transform.position;
-        greenReticle.transform.position = reticleGameObjects.transform.position;
-        yield return 0;
-    }
-
     private void InitializeVirtualTargets(GameObject targetA, GameObject targetB)
     {
         // select far, middle, near for dotted
 
-        List<float> depthList = new List<float> {1f, 2f, 3f};
+        // List<float> depthList = new List<float> {1f, 2f, 3f};
+        List<float> depthList = new List<float> {1.5f, 2.5f};
         Helpers.Shuffle(depthList); 
 
         Vector3 posA = Vector3.zero;
@@ -663,23 +741,23 @@ public class ExpController : MonoBehaviour
         greenPhysicalTarget.SetActive(true);
         if (currentPhyTargetsLayout == PhyTargetsLayouts.A)
         {
-            bluePhysicalTarget.transform.position = new Vector3(-0.8f, 0, 0.95f);
-            greenPhysicalTarget.transform.position = new Vector3(0.8f, 0, 1.45f);
+            bluePhysicalTarget.transform.position = new Vector3(-0.6f, 0, 1.5f);
+            greenPhysicalTarget.transform.position = new Vector3(0.4f, 0, 2.5f); // < 2.5
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.B)
         {
-            bluePhysicalTarget.transform.position = new Vector3(-0.8f, 0, 1.45f);
-            greenPhysicalTarget.transform.position = new Vector3(0.8f, 0, 0.95f);
+            bluePhysicalTarget.transform.position = new Vector3(-0.4f, 0, 2.5f);
+            greenPhysicalTarget.transform.position = new Vector3(0.6f, 0, 1.5f);
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.C)
         {
-            bluePhysicalTarget.transform.position = new Vector3( 0.8f, 0, 0.95f);
-            greenPhysicalTarget.transform.position = new Vector3(-0.8f, 0, 1.45f);
+            bluePhysicalTarget.transform.position = new Vector3( 0.6f, 0, 1.5f);
+            greenPhysicalTarget.transform.position = new Vector3(-0.4f, 0, 2.5f);
         }
         else
         {
-            bluePhysicalTarget.transform.position = new Vector3(  0.8f, 0, 1.45f);
-            greenPhysicalTarget.transform.position = new Vector3(-0.8f, 0, 0.95f);
+            bluePhysicalTarget.transform.position = new Vector3(  0.4f, 0, 1.6f);
+            greenPhysicalTarget.transform.position = new Vector3(-0.6f, 0, 0.9f);
         }
         bluePhysicalTarget.SetActive(false);
         greenPhysicalTarget.SetActive(false);
@@ -688,14 +766,15 @@ public class ExpController : MonoBehaviour
     private IEnumerator ShowTargetsAndRetention(float showTimeStamp = 7f, float retentionTimeStamp = 12f)
 	{
         currentTime = 0.0f;
-        // instructionText.text = "";
-        // StartTrialPanel.SetActive(false);
 
         // show a target
         if (currentTarget == Targets.virtualTarget) InitializeVirtualTargets(blueVirtualTarget, greenVirtualTarget);
         else
         {
             Debug.LogWarning("Passthorugh gogogo");
+            passthroughLayer.enabled = true;
+            lerpTimeElapsed = 0;
+            fadeInRW = true;
             bluePhysicalTarget.SetActive(true); // this is just for collecting data, in fact, participants see the target in passthrough
             greenPhysicalTarget.SetActive(true);
         }
@@ -714,7 +793,8 @@ public class ExpController : MonoBehaviour
         {
             bluePhysicalTarget.SetActive(false);
             greenPhysicalTarget.SetActive(false);
-            Debug.LogWarning(bluePhysicalTarget.transform.position);
+            lerpTimeElapsed = 0;
+            fadeInVR = true;
         }
 
         yield return new WaitUntil(() => currentTime > retentionTimeStamp);
@@ -731,20 +811,15 @@ public class ExpController : MonoBehaviour
 
     private IEnumerator ShowDecoyTargetsAndRetention(float callTimeStamp)
     {
+        decoys.transform.rotation = Quaternion.identity; // reset decoys
         InitializeVirtualTargets(dottedVirtualTarget, stripesVirtualTarget);
+        float decoysRotateAmount = 0f;
         if (currentRotation == SelfRotation.rotate)
         {
-            if (decoyNum != 0)
-            {
-                if (whichDirection % 2 == 0)
-                {
-                    decoys.transform.rotation = Quaternion.Euler(0, decoys.transform.rotation.eulerAngles.y - rotationAngleList[decoyNum-1], 0);
-                }
-                else
-                {
-                    decoys.transform.rotation = Quaternion.Euler(0, decoys.transform.rotation.eulerAngles.y + rotationAngleList[decoyNum-1], 0);
-                }
-            }
+            if (decoyNum == 0) decoysRotateAmount = 0f;
+            else if (decoyNum == 1) decoysRotateAmount = (whichDirection % 2 == 0) ? -rotationAngleList[decoyNum-1] : rotationAngleList[decoyNum-1];
+            else if (decoyNum == 2) decoysRotateAmount = (whichDirection % 2 == 0) ? -(120 - rotationAngleList[decoyNum]) : (120 - rotationAngleList[decoyNum]); // would never run this line :D
+            decoys.transform.rotation = Quaternion.Euler(0, decoys.transform.rotation.eulerAngles.y + decoysRotateAmount, 0);
         }
 
         yield return new WaitUntil(() => currentTime > callTimeStamp + 7f);
@@ -762,7 +837,7 @@ public class ExpController : MonoBehaviour
 
     private IEnumerator ShowRotationCue(float callTimeStamp, int rotateDirection, float rotateAmount = 0f)
     {
-        Debug.LogWarning("Rotation is: " + rotateDirection + ", " + rotateAmount);
+        // Debug.LogWarning("Rotation is: " + rotateDirection + ", " + rotateAmount);
         rotationCue.SetActive(true);
         rotationCue.GetComponent<SimpleRotationCue>().visualCollider.SetActive(true);
         SimpleRotationCue.isCueComplete = false;
@@ -788,15 +863,6 @@ public class ExpController : MonoBehaviour
         laser.SetActive(true);
 
         CheckBaselinePerformance(decoyTargetList, decoy_firstBaselineResponse, decoy_secondBaselineResponse);
-
-        // recall order depending which target had a better performance in the baseline measure
-        // can we make this one into a function?
-        // float firstDistError = Vector3.Distance(virtualTargetList[0].transform.position, firstBaselineResponse);
-        // float secondDistError = Vector3.Distance(virtualTargetList[1].transform.position, secondBaselineResponse);
-        // if (firstDistError > secondDistError)
-        // {
-        //     virtualTargetList.Reverse();
-        // }
 
         isDecoyTesting = true;
         yield return 0;

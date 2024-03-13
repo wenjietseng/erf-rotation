@@ -55,7 +55,6 @@ public class Alignment : MonoBehaviour
     RaycastHit hit;
     public OVRPassthroughLayer passthroughLayer;
 
-    // Start is called before the first frame update
     void Start()
     {
         laserTransform = laser.GetComponent<Transform>();
@@ -64,7 +63,6 @@ public class Alignment : MonoBehaviour
         startTrialPanel.SetActive(false);
     }
 
-    // Update is called once per frame
     void Update()
     {
 
@@ -157,8 +155,9 @@ public class Alignment : MonoBehaviour
                 startTrialPanel.SetActive(true);
                 passthroughLayer.textureOpacity = 0.0f;
                 passthroughLayer.enabled = false;
-                physicalCube.GetComponent<Renderer>().enabled = false;
-                physicalCube.SetActive(false);
+                // disable the renderer of both physical targets
+                // physicalCube.GetComponent<Renderer>().enabled = false;
+                // physicalCube.SetActive(false);
 
             }
 
