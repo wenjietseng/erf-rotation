@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using System.IO;
 
 /* How to align the virtual scene with the physical environment:
 At the start of the app, place the controller where the reference point A should be,
@@ -54,9 +55,19 @@ public class Alignment : MonoBehaviour
     Transform laserTransform;
     RaycastHit hit;
     public OVRPassthroughLayer passthroughLayer;
+    //
+
+    
+    public string calibrationDistanceFilePath;
+    private StreamWriter calibrationWriter;
+    int participantID;
 
     void Start()
     {
+        participantID = GameObject.Find("Experiment Controller").GetComponent<ExpController>().participantID;
+        calibrationDistanceFilePath = Helpers.CreateDataPath(participantID, "Calibration");
+        calibrationWriter = new StreamWriter(calibrationDistanceFilePath, true);
+
         laserTransform = laser.GetComponent<Transform>();
         virtualPositionA = referencePointA.transform.position; 
         virtualPositionB = referencePointB.transform.position;
@@ -159,6 +170,11 @@ public class Alignment : MonoBehaviour
                 // physicalCube.GetComponent<Renderer>().enabled = false;
                 // physicalCube.SetActive(false);
 
+                // write a file
+                calibrationWriter.Write("ParticipantID,CalibratedRatio\n");
+                calibrationWriter.Write(participantID + "," + calibratedDistance.ToString("F6") + "\n");
+                calibrationWriter.Flush();
+                calibrationWriter.Close();
             }
 
             // When button 2 pressed, start again

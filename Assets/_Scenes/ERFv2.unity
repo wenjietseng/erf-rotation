@@ -707,7 +707,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5563af78ada4854185779f892573e29, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  participantID: 999
+  participantID: 1000
   buildFor: 0
   dataFilePath: 
   layoutBlockNum: 0
@@ -724,7 +724,7 @@ MonoBehaviour:
   directionTable: 00000000000000000000000000000000
   whichDirection: 0
   currentTime: 0
-  restingDuration: 10
+  restingDuration: 60
   bluePhysicalTarget: {fileID: 772333681}
   greenPhysicalTarget: {fileID: 1949280492}
   blueVirtualTarget: {fileID: 206238187}
@@ -2490,6 +2490,7 @@ MonoBehaviour:
     m_Bits: 64
   laser: {fileID: 327536102}
   passthroughLayer: {fileID: 398346826}
+  calibrationDistanceFilePath: 
 --- !u!1 &1258542864
 GameObject:
   m_ObjectHideFlags: 0
@@ -2548,7 +2549,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1278244850}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 2}
+  m_LocalPosition: {x: 0, y: 0, z: 1.5}
   m_LocalScale: {x: 0.049999997, y: 0.049999997, z: 0.049999997}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -4,8 +4,6 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
-using System.Drawing;
-using UnityEditor.Experimental.GraphView;
 
 public class ExpController : MonoBehaviour
 {
@@ -128,7 +126,7 @@ public class ExpController : MonoBehaviour
     public bool fadeInVR;
     float lerpTimeElapsed = 0;
     float lerpDuration = 1;
-
+    int checkPhysicalLayout = 0;
     
 
     void Start()
@@ -166,9 +164,30 @@ public class ExpController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Q))
+        if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.RTouch))
         {
+            checkPhysicalLayout += 1;
+            if (checkPhysicalLayout % 4 == 0)
+            {
+                currentPhyTargetsLayout = PhyTargetsLayouts.A;
 
+            }
+            else if (checkPhysicalLayout % 4 == 1)
+            {
+                currentPhyTargetsLayout = PhyTargetsLayouts.B;
+            }
+            else if (checkPhysicalLayout % 4 == 2)
+            {
+                currentPhyTargetsLayout = PhyTargetsLayouts.C;
+            }
+            else
+            {
+                currentPhyTargetsLayout = PhyTargetsLayouts.D;                
+            }
+            InitializePhysicalTargets();
+            bluePhysicalTarget.SetActive (true);
+            greenPhysicalTarget.SetActive(true);
+            InitializeVirtualTargets(dottedVirtualTarget, stripesVirtualTarget);
         }
 
         if (Input.GetKeyDown(KeyCode.W))
@@ -440,7 +459,8 @@ public class ExpController : MonoBehaviour
                 {
                     PreparePhyTargetsLayout();
                     InitializePhysicalTargets();
-                    instructions.text = "Please tell the experimenter it's taking a break\nand wait for the experimenter's instruction.";
+                    instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
+                        "'\nand wait for the experimenter's instruction.";
                     restingTime = restingDuration;
                     StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
                 }
@@ -715,7 +735,7 @@ public class ExpController : MonoBehaviour
         // select far, middle, near for dotted
 
         // List<float> depthList = new List<float> {1f, 2f, 3f};
-        List<float> depthList = new List<float> {1.5f, 2.5f};
+        List<float> depthList = new List<float> {1.5f, 2.5f, 3.5f};
         Helpers.Shuffle(depthList); 
 
         Vector3 posA = Vector3.zero;
@@ -723,8 +743,8 @@ public class ExpController : MonoBehaviour
 
         while (Vector3.Distance(posA, posB) < 0.31f || Vector3.Angle(posA, posB) < 10f)
         {
-            posA = new Vector3(UnityEngine.Random.Range(-1f, 1f), 0f, depthList[0] + Helpers.RandomGaussian(-.8f, 0.8f));
-            posB = new Vector3(UnityEngine.Random.Range(-1f, 1f), 0f, depthList[1] + Helpers.RandomGaussian(-.8f, 0.8f));
+            posA = new Vector3(UnityEngine.Random.Range(-1f, 1f), 0f, depthList[0] + Helpers.RandomGaussian(-.5f, 0.5f));
+            posB = new Vector3(UnityEngine.Random.Range(-1f, 1f), 0f, depthList[1] + Helpers.RandomGaussian(-.5f, 0.5f));
             // Debug.LogWarning("Distance: " + Vector3.Distance(dottedPos, stripesPos) + "\nAngle: " + Vector3.Angle(dottedPos, stripesPos));
         }
 
@@ -741,23 +761,23 @@ public class ExpController : MonoBehaviour
         greenPhysicalTarget.SetActive(true);
         if (currentPhyTargetsLayout == PhyTargetsLayouts.A)
         {
-            bluePhysicalTarget.transform.position = new Vector3(-0.6f, 0, 1.5f);
-            greenPhysicalTarget.transform.position = new Vector3(0.4f, 0, 2.5f); // < 2.5
+            bluePhysicalTarget.transform.position  = new Vector3(-0.87f, 0, 1.5f); // tan 30
+            greenPhysicalTarget.transform.position = new Vector3(-0.67f, 0, 2.5f);  // tan 15
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.B)
         {
-            bluePhysicalTarget.transform.position = new Vector3(-0.4f, 0, 2.5f);
-            greenPhysicalTarget.transform.position = new Vector3(0.6f, 0, 1.5f);
+            bluePhysicalTarget.transform.position  = new Vector3(-0.2f, 0, 2.5f);
+            greenPhysicalTarget.transform.position = new Vector3( 0.8f, 0, 2.5f);
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.C)
         {
-            bluePhysicalTarget.transform.position = new Vector3( 0.6f, 0, 1.5f);
-            greenPhysicalTarget.transform.position = new Vector3(-0.4f, 0, 2.5f);
+            bluePhysicalTarget.transform.position  = new Vector3( 0.3f, 0, 1.5f);
+            greenPhysicalTarget.transform.position = new Vector3(-0.7f, 0, 1.5f);
         }
         else
         {
-            bluePhysicalTarget.transform.position = new Vector3(  0.4f, 0, 1.6f);
-            greenPhysicalTarget.transform.position = new Vector3(-0.6f, 0, 0.9f);
+            bluePhysicalTarget.transform.position  = new Vector3(0.67f, 0, 2.5f); // tan 15
+            greenPhysicalTarget.transform.position = new Vector3( 1.5f, 0, 1.5f); // tan 45
         }
         bluePhysicalTarget.SetActive(false);
         greenPhysicalTarget.SetActive(false);
