@@ -30,10 +30,10 @@ public class ExpController : MonoBehaviour
     public int layoutBlockNum = 0; 
     /// <summary> a Latin square for 4 conditions
     /// 4 layouts of physical targets
-    /// A C B D | P1, 5,  9, ... 
-    /// B A D C | P2, 6, 10, ...
-    /// C D A B | P3, 7, 11, ...
-    /// D B C A | P4, 8, 12, ...
+    /// A C B D | P0, P4, P8 
+    /// B A D C | P1, P5, P9
+    /// C D A B | P2, P6, P10
+    /// D B C A | P3, P7, P11
     /// </summary>
     int [,] latinSquare4x4 = new int [4, 4] {{1, 3, 2, 4},
                                              {2, 1, 4, 3},
@@ -205,15 +205,114 @@ public class ExpController : MonoBehaviour
             isTrialRunning = true;
         }        
 
-        if (layoutBlockNum < 4)
+        // if (layoutBlockNum < 4)
+        // {
+        if (conditionBlockNum < 8)
         {
-            if (conditionBlockNum < 2)
+            if (isTrialRunning)
             {
-                if (isTrialRunning)
+                currentTime += Time.deltaTime;
+                
+                if (isBaselineMeasure)
                 {
-                    currentTime += Time.deltaTime;
+                    if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+                    {
+                        hitPoint = hit.point;
+                        UpdateLaser(hitPoint);
+                        UpdateReticle(hitPoint);
                     
-                    if (isBaselineMeasure)
+                        if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
+                        {
+                            // record data
+                            responsePos = hitPoint;
+                            endTimeStamp = currentTime;
+                            AddData();
+
+                            if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns());
+
+                            // prepare the next target
+                            if (pairCounter == 0)
+                            {
+                                beginTimeStamp = currentTime;
+                                firstBaselineResponse = responsePos;
+                            }
+                            else
+                            {
+                                secondBaselineResponse = responsePos;
+                            }
+                            pairCounter += 1;
+                            
+                            if (pairCounter == 2)
+                            {
+                                // reset variables
+                                isBaselineMeasure = false;
+                                DisablePointing();
+                                StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                                pairCounter = 0;
+                                isDecoyRunning = true;
+
+                                StartCoroutine(ShortPauseBeforeNextDecoy(5f));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        DisablePointing();
+                        if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                    }
+                }
+
+                if (isDecoyRunning && decoyNum < decoyAmountThisTrial)
+                {
+                    if (isDecoyBaseline)
+                    {
+                        if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+                        {
+                            hitPoint = hit.point;
+                            UpdateLaser(hitPoint);
+                            UpdateReticle(hitPoint);
+
+                            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
+                            {
+                                // record data
+                                responsePos = hitPoint;
+                                endTimeStamp = currentTime;
+                                AddData();
+
+                                if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
+
+                                // prepare the next target
+                                if (pairCounter == 0)
+                                {
+                                    beginTimeStamp = currentTime;
+                                    decoy_firstBaselineResponse = responsePos;
+                                }
+                                else
+                                {
+                                    decoy_secondBaselineResponse = responsePos;
+                                }
+                                pairCounter += 1;
+                            
+                                if (pairCounter == 2)
+                                {
+                                    // reset variables
+                                    isDecoyBaseline = false;
+                                    DisablePointing();
+                                    StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                                    pairCounter = 0;
+
+                                    StartCoroutine(ShowRotationCue(endTimeStamp, whichDirection, rotationAngleList[decoyNum]));
+                                }
+                            }
+                        }
+                        else
+                        {
+                            DisablePointing();
+                            if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                        }
+                    }
+
+                    if (isDecoyTesting)
                     {
                         if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
                         {
@@ -228,204 +327,39 @@ public class ExpController : MonoBehaviour
                                 endTimeStamp = currentTime;
                                 AddData();
 
-                                if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns());
-
-                                // prepare the next target
-                                if (pairCounter == 0)
-                                {
-                                    beginTimeStamp = currentTime;
-                                    firstBaselineResponse = responsePos;
-                                }
-                                else
-                                {
-                                    secondBaselineResponse = responsePos;
-                                }
-                                pairCounter += 1;
-                               
-                                if (pairCounter == 2)
-                                {
-                                    // reset variables
-                                    isBaselineMeasure = false;
-                                    DisablePointing();
-                                    StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
-                                    pairCounter = 0;
-                                    isDecoyRunning = true;
-
-                                    StartCoroutine(ShortPauseBeforeNextDecoy(5f));
-                                }
-                            }
-                        }
-                        else
-                        {
-                            DisablePointing();
-                            if (reticle != null) reticle.position = reticleGameObjects.transform.position;
-                        }
-                    }
-
-                    if (isDecoyRunning && decoyNum < decoyAmountThisTrial)
-                    {
-                        if (isDecoyBaseline)
-                        {
-                            if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
-                            {
-                                hitPoint = hit.point;
-                                UpdateLaser(hitPoint);
-                                UpdateReticle(hitPoint);
-
-                                if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
-                                {
-                                    // record data
-                                    responsePos = hitPoint;
-                                    endTimeStamp = currentTime;
-                                    AddData();
-
-                                    if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
-
-                                    // prepare the next target
-                                    if (pairCounter == 0)
-                                    {
-                                        beginTimeStamp = currentTime;
-                                        decoy_firstBaselineResponse = responsePos;
-                                    }
-                                    else
-                                    {
-                                        decoy_secondBaselineResponse = responsePos;
-                                    }
-                                    pairCounter += 1;
-                                
-                                    if (pairCounter == 2)
-                                    {
-                                        // reset variables
-                                        isDecoyBaseline = false;
-                                        DisablePointing();
-                                        StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
-                                        pairCounter = 0;
-
-                                        StartCoroutine(ShowRotationCue(endTimeStamp, whichDirection, rotationAngleList[decoyNum]));
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                DisablePointing();
-                                if (reticle != null) reticle.position = reticleGameObjects.transform.position;
-                            }
-                        }
-
-                        if (isDecoyTesting)
-                        {
-                            if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
-                            {
-                                hitPoint = hit.point;
-                                UpdateLaser(hitPoint);
-                                UpdateReticle(hitPoint);
-                            
-                                if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
-                                {
-                                    // record data
-                                    responsePos = hitPoint;
-                                    endTimeStamp = currentTime;
-                                    AddData();
-
-                                    if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
-
-                                    // prepare the next target
-                                    if (pairCounter == 0)
-                                    {
-                                        beginTimeStamp = currentTime;
-                                        decoy_firstTestResponse = responsePos;
-                                    }
-                                    else
-                                    {
-                                        decoy_secondTestResponse = responsePos;
-                                    }
-                                    pairCounter += 1;
-                                
-                                    if (pairCounter == 2)
-                                    {
-                                        // reset variables
-                                        isDecoyTesting = false;
-                                        DisablePointing();
-                                        StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
-                                        pairCounter = 0;
-                                        decoyNum += 1;
-                                        
-                                        if (decoyNum < decoyAmountThisTrial) StartCoroutine(ShortPauseBeforeNextDecoy(5f));
-                                        else 
-                                        {
-                                            decoyNum = 0;
-                                            isDecoyRunning = false;
-                                            StartCoroutine(ShortPauseBeforeBackToTest()); 
-                                        }
-                                    }
-                                }
-
-                            }
-                            else
-                            {
-                                DisablePointing();
-                                if (reticle != null) reticle.position = reticleGameObjects.transform.position;
-                            }
-                        }
-                    }
-                    
-                    if (isTestingMeasure)
-                    {
-                        if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
-                        {
-                            hitPoint = hit.point;
-                            UpdateLaser(hitPoint);
-                            UpdateReticle(hitPoint);
-
-                            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
-                            {                                    
-                                // record data
-                                responsePos = hitPoint;
-                                endTimeStamp = currentTime;
-                                AddData();
-
                                 if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
 
                                 // prepare the next target
                                 if (pairCounter == 0)
                                 {
                                     beginTimeStamp = currentTime;
-                                    firstTestResponse = responsePos;
+                                    decoy_firstTestResponse = responsePos;
                                 }
                                 else
                                 {
-                                    secondTestResponse = responsePos;
+                                    decoy_secondTestResponse = responsePos;
                                 }
                                 pairCounter += 1;
                             
                                 if (pairCounter == 2)
                                 {
                                     // reset variables
-                                    isTestingMeasure = false;
+                                    isDecoyTesting = false;
                                     DisablePointing();
                                     StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
                                     pairCounter = 0;
-                                    this.transform.rotation = Quaternion.Euler(0, 0, 0);
+                                    decoyNum += 1;
                                     
-                                    // complete one trial
-                                    isTrialRunning = false;
-                                    if (trialNum < 3)
+                                    if (decoyNum < decoyAmountThisTrial) StartCoroutine(ShortPauseBeforeNextDecoy(5f));
+                                    else 
                                     {
-                                        trialNum += 1;
+                                        decoyNum = 0;
+                                        isDecoyRunning = false;
+                                        StartCoroutine(ShortPauseBeforeBackToTest()); 
                                     }
-                                    else
-                                    {
-                                        trialNum = 0;
-                                        conditionBlockNum += 1;
-                                        Helpers.Shuffle(conditionArray);
-                                    }
-                                    PrepareCondition();
-                                    StartTrialPanel.SetActive(true);
-                                    instructions.text = "";
-                                    textOnStartPanel.text = layoutBlockNum*8 + conditionBlockNum*4 + trialNum + "/32\nStart Next Trial";
-                                    // go back to the starting orientation
                                 }
                             }
+
                         }
                         else
                         {
@@ -434,48 +368,147 @@ public class ExpController : MonoBehaviour
                         }
                     }
                 }
-
-                if (restingTime > 0)
+                
+                if (isTestingMeasure)
                 {
-                    restingTime -= Time.deltaTime;
-                    textOnStartPanel.text = restingTime.ToString("F0");
-                }
-                else
-                {
-                    if (StartTrialPanel.activeSelf)
+                    if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
                     {
-                        instructions.text = "";
-                        if ((layoutBlockNum*8 + conditionBlockNum*4 + trialNum) == 0) textOnStartPanel.text = "P" + participantID.ToString() + ", " + buildFor.ToString();
-                        else textOnStartPanel.text = layoutBlockNum*8 + conditionBlockNum*4 + trialNum + "/32\nStart Next Trial";
-                        StartTrialPanel.GetComponent<BoxCollider>().enabled = true;
+                        hitPoint = hit.point;
+                        UpdateLaser(hitPoint);
+                        UpdateReticle(hitPoint);
+
+                        if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
+                        {                                    
+                            // record data
+                            responsePos = hitPoint;
+                            endTimeStamp = currentTime;
+                            AddData();
+
+                            if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
+
+                            // prepare the next target
+                            if (pairCounter == 0)
+                            {
+                                beginTimeStamp = currentTime;
+                                firstTestResponse = responsePos;
+                            }
+                            else
+                            {
+                                secondTestResponse = responsePos;
+                            }
+                            pairCounter += 1;
+                        
+                            if (pairCounter == 2)
+                            {
+                                // reset variables
+                                isTestingMeasure = false;
+                                DisablePointing();
+                                StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                                pairCounter = 0;
+                                this.transform.rotation = Quaternion.Euler(0, 0, 0);
+                                
+                                // complete one trial
+                                isTrialRunning = false;
+                                if (trialNum < 3)
+                                {
+                                    trialNum += 1;
+                                }
+                                else
+                                {
+                                    Debug.LogWarning(2);
+                                    trialNum = 0;
+                                    conditionBlockNum += 1;
+                                    Helpers.Shuffle(conditionArray);
+                                    if (conditionBlockNum < 8)
+                                    {
+                                        Debug.LogWarning(1);
+                                        PreparePhyTargetsLayout();
+                                        InitializePhysicalTargets();                                
+                                        StartTrialPanel.SetActive(true);
+                                        instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
+                                            "'\nand wait for the experimenter's instruction.";
+                                        restingTime = restingDuration;
+                                        StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
+                                    }
+                                    else
+                                    {
+                                        if (!isDataSaved)
+                                        {
+                                            Debug.LogWarning("End of the study");
+                                            StartTrialPanel.SetActive(false);
+                                            StartCoroutine(WriteDataList());
+                                            isDataSaved = true;
+                                        }
+                                    }
+                                }
+
+                                PrepareCondition();
+                                StartTrialPanel.SetActive(true);
+                                // instructions.text = "";
+                                // textOnStartPanel.text = layoutBlockNum*8 + conditionBlockNum*4 + trialNum + "/32\nStart Next Trial";
+                                // go back to the starting orientation
+                            }
+                        }
+                    }
+                    else
+                    {
+                        DisablePointing();
+                        if (reticle != null) reticle.position = reticleGameObjects.transform.position;
                     }
                 }
             }
+
+            if (restingTime > 0)
+            {
+                restingTime -= Time.deltaTime;
+                textOnStartPanel.text = restingTime.ToString("F0");
+            }
             else
             {
-                conditionBlockNum = 0;
-                layoutBlockNum += 1;
-                if (layoutBlockNum < 4)
+                if (StartTrialPanel.activeSelf)
                 {
-                    PreparePhyTargetsLayout();
-                    InitializePhysicalTargets();
-                    instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
-                        "'\nand wait for the experimenter's instruction.";
-                    restingTime = restingDuration;
-                    StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
+                    instructions.text = "";
+                    if ((layoutBlockNum*8 + conditionBlockNum*4 + trialNum) == 0) textOnStartPanel.text = "P" + participantID.ToString() + ", " + buildFor.ToString();
+                    else textOnStartPanel.text = layoutBlockNum*8 + conditionBlockNum*4 + trialNum + "/32\nStart Next Trial";
+                    StartTrialPanel.GetComponent<BoxCollider>().enabled = true;
                 }
             }
         }
         else
         {
-            if (!isDataSaved)
-            {
-                Debug.LogWarning("End of the study");
-                StartTrialPanel.SetActive(false);
-                StartCoroutine(WriteDataList());
-                isDataSaved = true;
-            }
+            // conditionBlockNum = 0;
+            // layoutBlockNum += 1;
+            // if (conditionBlockNum < 7)
+            // {
+            //     PreparePhyTargetsLayout();
+            //     InitializePhysicalTargets();
+            //     instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
+            //         "'\nand wait for the experimenter's instruction.";
+            //     restingTime = restingDuration;
+            //     StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
+            // }
+            // else
+            // {
+            //     if (!isDataSaved)
+            //     {
+            //         Debug.LogWarning("End of the study");
+            //         StartTrialPanel.SetActive(false);
+            //         StartCoroutine(WriteDataList());
+            //         isDataSaved = true;
+            //     }
+            // }
         }
+        // }
+        // else
+        // {
+        //     if (!isDataSaved)
+        //     {
+        //         Debug.LogWarning("End of the study");
+        //         StartTrialPanel.SetActive(false);
+        //         StartCoroutine(WriteDataList());
+        //         isDataSaved = true;
+        //     }
+        // }
     }
 
     private void PassthroughControl()
@@ -510,19 +543,19 @@ public class ExpController : MonoBehaviour
 
     private void PreparePhyTargetsLayout()
     {
-        if (latinSquare4x4[participantID % 4, layoutBlockNum] == 1)
+        if (latinSquare4x4[participantID % 4, conditionBlockNum % 4] == 1)
         {
             currentPhyTargetsLayout = PhyTargetsLayouts.A;
         }
-        else if (latinSquare4x4[participantID % 4, layoutBlockNum] == 2)
+        else if (latinSquare4x4[participantID % 4, conditionBlockNum % 4] == 2)
         {
             currentPhyTargetsLayout = PhyTargetsLayouts.B;
         }
-        else if (latinSquare4x4[participantID % 4, layoutBlockNum] == 3)
+        else if (latinSquare4x4[participantID % 4, conditionBlockNum % 4] == 3)
         {
             currentPhyTargetsLayout = PhyTargetsLayouts.C;
         }
-        else if (latinSquare4x4[participantID % 4, layoutBlockNum] == 4)
+        else if (latinSquare4x4[participantID % 4, conditionBlockNum % 4] == 4)
         {
             currentPhyTargetsLayout = PhyTargetsLayouts.D;
         }

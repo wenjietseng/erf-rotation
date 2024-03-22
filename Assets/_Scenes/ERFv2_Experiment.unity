@@ -509,7 +509,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 180021390}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -707,8 +707,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5563af78ada4854185779f892573e29, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  participantID: 1000
-  buildFor: 0
+  participantID: 1001
+  buildFor: 1
   dataFilePath: 
   layoutBlockNum: 0
   currentPhyTargetsLayout: 0
@@ -724,7 +724,7 @@ MonoBehaviour:
   directionTable: 00000000000000000000000000000000
   whichDirection: 0
   currentTime: 0
-  restingDuration: 60
+  restingDuration: 20
   bluePhysicalTarget: {fileID: 772333681}
   greenPhysicalTarget: {fileID: 1949280492}
   blueVirtualTarget: {fileID: 206238187}
@@ -1526,7 +1526,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 772333681}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -1845,7 +1845,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1057698262}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -3696,7 +3696,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1949280492}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1

@@ -11,7 +11,6 @@ public class QuestionnaireController : MonoBehaviour
     public TMP_Text smallInstruction;
     public TMP_Text largeInstruction;
     public GameObject scale;
-    public GameObject controller; 
     public List<GameObject> scales;
     public List<int> responses;
     private List<QuestionnaireData> items = new List<QuestionnaireData>();

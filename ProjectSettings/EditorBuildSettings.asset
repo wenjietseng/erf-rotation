@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Scenes/ERFv2.unity
+    path: Assets/_Scenes/ERFv2_Experiment.unity
     guid: 26e01fb3b9c5b4c41b4ef452bbc4367f
   - enabled: 1
     path: Assets/_Scenes/ERFv2_Questionnaire.unity
