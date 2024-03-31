@@ -3224,12 +3224,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f766eceb15443064484cd57b364b6b9a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  participantID: 1001
+  participantID: 1002
   mainText: {fileID: 354617195}
   smallInstruction: {fileID: 1435667997}
   largeInstruction: {fileID: 1643532761}
   scale: {fileID: 779520733}
-  controller: {fileID: 0}
   scales:
   - {fileID: 968613223}
   - {fileID: 702354525}

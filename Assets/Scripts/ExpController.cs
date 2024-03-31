@@ -131,9 +131,9 @@ public class ExpController : MonoBehaviour
 
     void Start()
     {
-        string note = (buildFor == BuildFor.Practice) ? "_Practice" : "_FormalStudy";
-        dataFilePath = Helpers.CreateDataPath(participantID, note);
+        dataFilePath = Helpers.CreateDataPath(participantID);
         erfStudyWriter = new StreamWriter(dataFilePath, true);
+        WriteHeader();
         dataList = new List<PointingData>();
 
         /// When begin, show their participant no and practice
@@ -161,43 +161,21 @@ public class ExpController : MonoBehaviour
         rotationCue.SetActive(false);
     }
 
-    // Update is called once per frame
     void Update()
     {
-        if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.RTouch))
+
+        int trialIDTemp = conditionBlockNum*4 + trialNum;
+        if (Alignment.isCalibrated && trialIDTemp > 4 && buildFor == BuildFor.Practice)
         {
-            checkPhysicalLayout += 1;
-            if (checkPhysicalLayout % 4 == 0)
+            if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.RTouch))
             {
-                currentPhyTargetsLayout = PhyTargetsLayouts.A;
-
+                ResetVariablesForStudy();
             }
-            else if (checkPhysicalLayout % 4 == 1)
-            {
-                currentPhyTargetsLayout = PhyTargetsLayouts.B;
-            }
-            else if (checkPhysicalLayout % 4 == 2)
-            {
-                currentPhyTargetsLayout = PhyTargetsLayouts.C;
-            }
-            else
-            {
-                currentPhyTargetsLayout = PhyTargetsLayouts.D;                
-            }
-            InitializePhysicalTargets();
-            bluePhysicalTarget.SetActive (true);
-            greenPhysicalTarget.SetActive(true);
-            InitializeVirtualTargets(dottedVirtualTarget, stripesVirtualTarget);
-        }
-
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-
         }
 
         PassthroughControl();
         
-        if (isStartTrialPanelTriggered  && Alignment.isCalibrated) 
+        if (isStartTrialPanelTriggered && Alignment.isCalibrated) 
         {
             isStartTrialPanelTriggered = false;
             StartTrialPanel.SetActive(false);
@@ -279,7 +257,7 @@ public class ExpController : MonoBehaviour
                                 endTimeStamp = currentTime;
                                 AddData();
 
-                                if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); //practice...? how to fix?
+                                if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); 
 
                                 // prepare the next target
                                 if (pairCounter == 0)
@@ -415,13 +393,11 @@ public class ExpController : MonoBehaviour
                                 }
                                 else
                                 {
-                                    Debug.LogWarning(2);
                                     trialNum = 0;
                                     conditionBlockNum += 1;
                                     Helpers.Shuffle(conditionArray);
                                     if (conditionBlockNum < 8)
                                     {
-                                        Debug.LogWarning(1);
                                         PreparePhyTargetsLayout();
                                         InitializePhysicalTargets();                                
                                         StartTrialPanel.SetActive(true);
@@ -468,7 +444,7 @@ public class ExpController : MonoBehaviour
                 if (StartTrialPanel.activeSelf)
                 {
                     instructions.text = "";
-                    if ((layoutBlockNum*8 + conditionBlockNum*4 + trialNum) == 0) textOnStartPanel.text = "P" + participantID.ToString() + ", " + buildFor.ToString();
+                    if ((layoutBlockNum*8 + conditionBlockNum*4 + trialNum) == 0) textOnStartPanel.text = "P" + participantID.ToString() + "\n" + buildFor.ToString();
                     else textOnStartPanel.text = layoutBlockNum*8 + conditionBlockNum*4 + trialNum + "/32\nStart Next Trial";
                     StartTrialPanel.GetComponent<BoxCollider>().enabled = true;
                 }
@@ -476,27 +452,7 @@ public class ExpController : MonoBehaviour
         }
         else
         {
-            // conditionBlockNum = 0;
-            // layoutBlockNum += 1;
-            // if (conditionBlockNum < 7)
-            // {
-            //     PreparePhyTargetsLayout();
-            //     InitializePhysicalTargets();
-            //     instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
-            //         "'\nand wait for the experimenter's instruction.";
-            //     restingTime = restingDuration;
-            //     StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
-            // }
-            // else
-            // {
-            //     if (!isDataSaved)
-            //     {
-            //         Debug.LogWarning("End of the study");
-            //         StartTrialPanel.SetActive(false);
-            //         StartCoroutine(WriteDataList());
-            //         isDataSaved = true;
-            //     }
-            // }
+
         }
         // }
         // else
@@ -509,6 +465,21 @@ public class ExpController : MonoBehaviour
         //         isDataSaved = true;
         //     }
         // }
+    }
+
+    private void ResetVariablesForStudy()
+    {
+        Debug.LogWarning("Change from Practice to Formal Study, reset variables");
+        buildFor = BuildFor.FormalStudy;
+        trialNum = 0;
+        conditionBlockNum = 0;
+        currentTime = 0;
+        PreparePhyTargetsLayout();
+        InitializePhysicalTargets();                                
+        StartTrialPanel.SetActive(true);
+        instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
+            "'\nand wait for the experimenter's instruction.";
+        PrepareCondition();
     }
 
     private void PassthroughControl()
@@ -931,11 +902,12 @@ public class ExpController : MonoBehaviour
         }
     }
 
-    private IEnumerator WriteDataList()
+    private void WriteHeader()
     {
         erfStudyWriter.Write(
             "trialID"                       + "," +
             "Participant"                   + "," +
+            "isPractice"                    + "," +
             "LayoutBlockNum"                + "," +
             "ConditionBlockNum"             + "," +
             "TrialNum"                      + "," +
@@ -964,12 +936,109 @@ public class ExpController : MonoBehaviour
             "ControllerPos_X"               + "," + 
             "ControllerPos_Y"               + "," + 
             "ControllerPoss_Z"              + "\n"); 
+    }
 
-        foreach (var data in dataList)
+    private IEnumerator WriteDataList()
+    {
+        // erfStudyWriter.Write(
+        //     "trialID"                       + "," +
+        //     "Participant"                   + "," +
+        //     "LayoutBlockNum"                + "," +
+        //     "ConditionBlockNum"             + "," +
+        //     "TrialNum"                      + "," +
+        //     "LayoutType"                    + "," +
+        //     "Condition"                     + "," +
+        //     "TargetType"                    + "," +
+        //     "PairCount"                     + "," +
+        //     "SelfRotation"                  + "," +
+        //     "RotateDirection"               + "," +
+        //     "DecoyAmount"                   + "," +
+        //     "CurrentDecoy"                  + "," +
+        //     "RotationAmount"                + "," +
+        //     "Baseline"                      + "," +
+        //     "Testing"                       + "," +
+        //     "DecoyBaseline"                 + "," +
+        //     "DecoyTesting"                  + "," +
+        //     "BeginTime"                     + "," + // RT
+        //     "EndTime"                       + "," +
+        //     "ResponsePos_X"                 + "," + // position error
+        //     "ResponsePos_Y"                 + "," + 
+        //     "ResponsePos_Z"                 + "," + 
+        //     "AnsPos_X"                      + "," + 
+        //     "AnsPos_Y"                      + "," + 
+        //     "AnsPos_Z"                      + "," + 
+        //     "TargetName"                    + "," +
+        //     "ControllerPos_X"               + "," + 
+        //     "ControllerPos_Y"               + "," + 
+        //     "ControllerPoss_Z"              + "\n"); 
+
+        // foreach (var data in dataList)
+        // {
+        //     erfStudyWriter.Write(
+        //         "P" + data.participantID.ToString()        + "," +
+        //         data.trialID.ToString()                    + "," +
+        //         data.layoutBlockNum                        + "," +
+        //         data.conditionBlockNum                     + "," +
+        //         data.trialNum                              + "," +
+        //         data.currentPhyTargetsLayout               + "," +
+        //         data.currentCondition                      + "," +
+        //         data.currentTarget                         + "," +
+        //         data.pairCounter                           + "," +
+        //         data.currentRotation                       + "," +
+        //         data.whichDirection                        + "," +
+        //         data.decoyAmountThisTrial                  + "," +
+        //         data.decoyNum                              + "," +
+        //         data.rotationAmount                        + "," +
+        //         data.isBaselineMeasure                     + "," +
+        //         data.isTestingMeasure                      + "," +
+        //         data.isDecoyBaseline                       + "," +
+        //         data.isDecoyTesting                        + "," +
+        //         data.beginTime.ToString("F6")              + "," +
+        //         data.endTime.ToString("F6")                + "," +
+        //         data.responsePos.x.ToString("F6")          + "," +
+        //         data.responsePos.y.ToString("F6")          + "," +
+        //         data.responsePos.z.ToString("F6")          + "," +
+        //         data.groundTruthPos.x.ToString("F6")       + "," +
+        //         data.groundTruthPos.y.ToString("F6")       + "," +
+        //         data.groundTruthPos.z.ToString("F6")       + "," +
+        //         data.groundTruthName                       + "," +
+        //         data.controllerPos.x.ToString("F6")        + "," +
+        //         data.controllerPos.y.ToString("F6")        + "," +
+        //         data.controllerPos.z.ToString("F6")        + "\n"
+        //     );
+        // }
+
+        erfStudyWriter.Flush();
+        erfStudyWriter.Close();
+        // Change Scene
+        SceneManager.LoadScene("ERFv2_Questionnaire");
+        yield return 0;
+    }
+
+    private void AddData()
+    {
+        if (isDecoyRunning) groundTruth = decoyTargetList[pairCounter];
+        else
         {
-            erfStudyWriter.Write(
+            if (currentTarget == Targets.virtualTarget) groundTruth = virtualTargetList[pairCounter];
+            else groundTruth = physicalTargetList[pairCounter];
+        }
+
+        int trialID = layoutBlockNum*8 + conditionBlockNum*4 + trialNum;
+        bool isPractice = (buildFor == BuildFor.Practice) ? true : false;
+
+        dataList.Add(new PointingData(participantID, trialID, isPractice, layoutBlockNum, conditionBlockNum, trialNum,
+            currentPhyTargetsLayout.ToString(), currentCondition.ToString(), currentTarget.ToString(), pairCounter,
+            currentRotation.ToString(), whichDirection, decoyAmountThisTrial, decoyNum, rotationAngleList[decoyNum],
+            isBaselineMeasure, isTestingMeasure, isDecoyBaseline, isDecoyTesting, beginTimeStamp, endTimeStamp, 
+            responsePos, groundTruth.transform.position, groundTruth.name, controller.transform.position));
+
+        PointingData data = dataList[0];
+        
+        erfStudyWriter.Write(
                 "P" + data.participantID.ToString()        + "," +
                 data.trialID.ToString()                    + "," +
+                data.isPractice                            + "," +
                 data.layoutBlockNum                        + "," +
                 data.conditionBlockNum                     + "," +
                 data.trialNum                              + "," +
@@ -999,35 +1068,13 @@ public class ExpController : MonoBehaviour
                 data.controllerPos.y.ToString("F6")        + "," +
                 data.controllerPos.z.ToString("F6")        + "\n"
             );
-        }
 
-        erfStudyWriter.Flush();
-        erfStudyWriter.Close();
-        // Change Scene
-        SceneManager.LoadScene("ERFv2_Questionnaire");
-        yield return 0;
-    }
-
-    private void AddData()
-    {
-        if (isDecoyRunning) groundTruth = decoyTargetList[pairCounter];
-        else
-        {
-            if (currentTarget == Targets.virtualTarget) groundTruth = virtualTargetList[pairCounter];
-            else groundTruth = physicalTargetList[pairCounter];
-        }
-
-        int trialID = layoutBlockNum*8 + conditionBlockNum*4 + trialNum;
-
-        dataList.Add(new PointingData(participantID , trialID, layoutBlockNum, conditionBlockNum, trialNum,
-            currentPhyTargetsLayout.ToString(), currentCondition.ToString(), currentTarget.ToString(), pairCounter,
-            currentRotation.ToString(), whichDirection, decoyAmountThisTrial, decoyNum, rotationAngleList[decoyNum],
-            isBaselineMeasure, isTestingMeasure, isDecoyBaseline, isDecoyTesting, beginTimeStamp, endTimeStamp, 
-            responsePos, groundTruth.transform.position, groundTruth.name, controller.transform.position));
+        dataList.RemoveAt(0);
 
         Debug.LogWarning(// Response Info
             trialID                                                                             + ", " +
             "Participant: P" +          participantID.ToString()                                + ", " +
+            "isPractice: " +            isPractice                                              + ", " +
             "Layout Block Num: " +      layoutBlockNum                                          + ", " +
             "Condition Block Num: " +   conditionBlockNum                                       + ", " +
             "Trial: " +                 trialNum                                                + ", " +
@@ -1058,6 +1105,7 @@ public class ExpController : MonoBehaviour
     {
         public int participantID;
         public int trialID;
+        public bool isPractice;
         public int layoutBlockNum;
         public int conditionBlockNum;
         public int trialNum;
@@ -1081,7 +1129,7 @@ public class ExpController : MonoBehaviour
         public string groundTruthName;
         public Vector3 controllerPos;
 
-        public PointingData(int participantID, int trialID, int layoutBlockNum, int conditionBlockNum, int trialNum,
+        public PointingData(int participantID, int trialID, bool isPractice, int layoutBlockNum, int conditionBlockNum, int trialNum,
                             string currentPhyTargetsLayout, string currentCondition, string currentTarget, int pairCounter,
                             string currentRotation, int whichDirection, int decoyAmountThisTrial, int decoyNum, int rotationAmount,
                             bool isBaselineMeasure, bool isTestingMeasure, bool isDecoyBaseline, bool isDecoyTesting,
@@ -1089,6 +1137,7 @@ public class ExpController : MonoBehaviour
         {
             this.participantID = participantID;
             this.trialID = trialID;
+            this.isPractice = isPractice;
             this.layoutBlockNum = layoutBlockNum;
             this.conditionBlockNum = conditionBlockNum;
             this.trialNum = trialNum;
