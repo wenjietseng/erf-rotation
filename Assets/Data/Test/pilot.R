@@ -1,5 +1,8 @@
 setwd("Documents/erf-rotation/Assets/Data/Test/")
-dta <- read.table("filesP1000_Practice_erf.csv", sep = ",", header = TRUE)
+dta_q <- read.table("filesP1001_questionnaire.csv", sep=",", h=T)
+mean(dta_q$Response)
+
+dta <- read.table("1001/filesP1001_FormalStudy_erf.csv", sep = ",", header = TRUE)
 
 dta[,c(1:18,27)] <- lapply(dta[,c(1:18,27)], FUN = function(x) { as.factor(x)})
 dta$RT <- dta$EndTime - dta$BeginTime
@@ -21,8 +24,27 @@ table(dta$LayoutType, dta$RotateDirection)
 dta0 <- subset(dta, dta$PairCount == "0")
 # Baseline
 dta_baseline <- subset(dta0, dta0$Baseline == "True")
+
+get_outliers(dta_baseline[-3,]$RT)
+dta_baseline[-3,]$RT
 hist(dta_baseline$RT)
+get_outliers(dta_baseline$distErr)
+
+dta_baseline$RT
+dta_baseline <- dta_baseline[-c(2,3),]
+mean(dta_baseline$RT)
+sd(dta_baseline$RT)
+hist(dta_baseline$RT)
+
+
 hist(dta_baseline$distErr)
+
+mean(dta_baseline$distErr)
+sd(dta_baseline$distErr)
+flag <- mean(dta_baseline$distErr) + 3*sd(dta_baseline$distErr)
+
+which(dta_baseline$distErr > flag)
+
 
 # rotation doesn make sense here since all conditions didn't rotate
 # position erro needs to check, perhaps it's Quest's fault
@@ -36,18 +58,33 @@ dta_baseline %>% group_by(TargetType) %>%
 dta_testing <- subset(dta0, dta0$Testing == "True")
 subset(dta_testing, dta_testing$TargetType == "physicalTarget")
 hist(dta_testing$RT)
+
+
+get_outliers <- function(x) {
+  out <- NULL
+  lb <- mean(x) - sd(x)*3
+  ub <- mean(x) + sd(x)*3
+  out <- which(x < lb)
+  out <- c(out, which(x > ub))
+  if (length(out) == 0) print("No outlier found")
+  else out
+}
+
+get_outliers(dta_testing$RT)
+
+
 mean(dta_testing$RT)
 sd(dta_testing$RT)
-dta_testing <- dta_testing[-1,]
+# dta_testing <- dta_testing[-1,]
 mean(dta_testing$RT)
 sd(dta_testing$RT)
 
 hist(dta_testing$RT)
-
+get_outliers(dta_testing$distErr)
 hist(dta_testing$distErr)
 mean(dta_testing$distErr)
 sd(dta_testing$distErr)
-dta_testing <- dta_testing[-c(1, 11),]
+# dta_testing <- dta_testing[-c(1, 11),]
 hist(dta_testing$distErr)
 
 subset(dta_testing, dta_testing$TargetType == "physicalTarget")
