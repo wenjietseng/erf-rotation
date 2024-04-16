@@ -1,0 +1,74 @@
+---
+title: "Pilot Data Analysis"
+author: "Wen-Jie Tseng"
+date: "2024-04-12"
+output: html_document
+---
+
+```{r echo = T, results = 'hide'}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+
+```
+
+# TODOs
+
+## Unity
+- (warning!) directionTable and assigning direction are wrong: turning left and right is not balanced across each layout. Check PrepareCondition and Line 576-606
+- calibratedDistance --> UnityDistance
+- file names set up
+- trialID and participantID are reversed
+- Y axis data can be removed
+- LayoutBlockNum can be removed
+- move TargetName to the other factor variables
+
+## analysis work
+- check if three decoys mess up people's performance badly three decoys vs. two decoys
+- When removing outlier, do it buy each participant, each condition.
+
+```{r}
+# y
+# conditions and layouts (5,6,7) have some mistakes. Need to check that
+dta_y <- read.table("1003/filesP1003_erf.csv", sep=",", h=T)
+dta_q_y <- read.table("1003/filesP1003_questionnaire.csv", sep = ",", h=T)
+dta_c_y <- read.table("1003/filesP1003Calibration_erf.csv", sep = ",", h=T)
+
+# wj
+dta_w <- read.table("1002/filesP1002_erf.csv", sep=",", h=T)
+dta_q_w <- read.table("1002/filesP1002_questionnaire.csv", sep = ",", h=T)
+dta_c_w <- read.table("1002/filesP1002Calibration_erf.csv", sep = ",", h=T)
+
+# j
+dta_j <- read.table("1001/filesP1001_FormalStudy_erf.csv", sep=",", h=T)
+dta_q_j <- read.table("1001/filesP1001_questionnaire.csv", sep=",", h=T)
+dta_c_j <- read.table("1001/filesP1001Calibration_erf.csv", sep=",", h=T)
+
+```
+
+
+
+
+
+
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

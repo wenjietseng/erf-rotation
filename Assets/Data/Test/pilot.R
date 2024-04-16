@@ -1,117 +1,309 @@
-setwd("Documents/erf-rotation/Assets/Data/Test/")
-dta_q <- read.table("filesP1001_questionnaire.csv", sep=",", h=T)
-mean(dta_q$Response)
-
-dta <- read.table("1001/filesP1001_FormalStudy_erf.csv", sep = ",", header = TRUE)
-
-dta[,c(1:18,27)] <- lapply(dta[,c(1:18,27)], FUN = function(x) { as.factor(x)})
-dta$RT <- dta$EndTime - dta$BeginTime
-dta$distErr <- sqrt((dta$AnsPos_X - dta$ResponsePos_X)^2 + 
-  (dta$AnsPos_Z - dta$ResponsePos_Z)^2)
-
-str(dta)
-
-library (dplyr)
-
-table(dta$LayoutBlockNum)
-table(dta$Participant)
-table(dta$LayoutType, dta$RotateDirection)
-
-# check whether if 3 decoys messes up with the performance
-# - remove false trials ...
-
-# first trial only
-dta0 <- subset(dta, dta$PairCount == "0")
-# Baseline
-dta_baseline <- subset(dta0, dta0$Baseline == "True")
-
-get_outliers(dta_baseline[-3,]$RT)
-dta_baseline[-3,]$RT
-hist(dta_baseline$RT)
-get_outliers(dta_baseline$distErr)
-
-dta_baseline$RT
-dta_baseline <- dta_baseline[-c(2,3),]
-mean(dta_baseline$RT)
-sd(dta_baseline$RT)
-hist(dta_baseline$RT)
-
-
-hist(dta_baseline$distErr)
-
-mean(dta_baseline$distErr)
-sd(dta_baseline$distErr)
-flag <- mean(dta_baseline$distErr) + 3*sd(dta_baseline$distErr)
-
-which(dta_baseline$distErr > flag)
-
-
-# rotation doesn make sense here since all conditions didn't rotate
-# position erro needs to check, perhaps it's Quest's fault
-dta_baseline %>% group_by(TargetType) %>%
-  summarise(rt_m   = mean(RT),
-            rt_sd  = sd(RT),
-            err_m  = mean(distErr),
-            err_sd = sd(distErr))
-
-# testing
-dta_testing <- subset(dta0, dta0$Testing == "True")
-subset(dta_testing, dta_testing$TargetType == "physicalTarget")
-hist(dta_testing$RT)
-
-
-get_outliers <- function(x) {
-  out <- NULL
-  lb <- mean(x) - sd(x)*3
-  ub <- mean(x) + sd(x)*3
-  out <- which(x < lb)
-  out <- c(out, which(x > ub))
-  if (length(out) == 0) print("No outlier found")
-  else out
-}
-
-get_outliers(dta_testing$RT)
-
-
-mean(dta_testing$RT)
-sd(dta_testing$RT)
-# dta_testing <- dta_testing[-1,]
-mean(dta_testing$RT)
-sd(dta_testing$RT)
-
-hist(dta_testing$RT)
-get_outliers(dta_testing$distErr)
-hist(dta_testing$distErr)
-mean(dta_testing$distErr)
-sd(dta_testing$distErr)
-# dta_testing <- dta_testing[-c(1, 11),]
-hist(dta_testing$distErr)
-
-subset(dta_testing, dta_testing$TargetType == "physicalTarget")
-
-dta_testing %>% group_by(TargetType, SelfRotation) %>%
-  summarise(rt_m   = mean(RT),
-            rt_sd  = sd(RT),
-            err_m  = mean(distErr),
-            err_sd = sd(distErr))
-
-dta_testing %>% group_by(TargetType) %>%
-  summarise(rt_m   = mean(RT),
-            rt_sd  = sd(RT),
-            err_m  = mean(distErr),
-            err_sd = sd(distErr))
-
-dta_testing %>% group_by(DecoyAmount, TargetType, SelfRotation) %>%
-  summarise(rt_m   = mean(RT),
-            rt_sd  = sd(RT),
-            err_m  = mean(distErr),
-            err_sd = sd(distErr))
-
-
-# Observe position!
-
-# To change
+# TODOs in Unity
+# - Warning: directionTable and assigning direction are wrong:
+#   turning left and right is not balanced across each layout.
+#   Check PrepareCondition and Line 576-606
+# - Warning: Need to add both target positions so that we can check answers
+# - calibratedDistance --> UnityDistance
+# - file names set up
 # - trialID and participantID are reversed
 # - Y axis data can be removed
-# - Yara's physical Target data has some error in it since her Quest reset
-# - change physical target layout every 4 trials (one condition)
+# - LayoutBlockNum can be removed
+# - move TargetName to the other factor variables
+
+## load packages
+library(dplyr)
+library(ggplot2)
+
+## get pilot data
+setwd("Documents/erf-rotation/Assets/Data/Test/")
+
+# y
+# conditions and layouts (5,6,7) have some mistakes. Need to check that
+dta_y <- read.table("1003/filesP1003_erf.csv", sep=",", h=T)
+dta_q_y <- read.table("1003/filesP1003_questionnaire.csv", sep = ",", h=T)
+dta_c_y <- read.table("1003/filesP1003Calibration_erf.csv", sep = ",", h=T)
+
+# wj
+dta_w <- read.table("1002/filesP1002_erf.csv", sep=",", h=T)
+dta_q_w <- read.table("1002/filesP1002_questionnaire.csv", sep = ",", h=T)
+dta_c_w <- read.table("1002/filesP1002Calibration_erf.csv", sep = ",", h=T)
+
+# j
+dta_j <- read.table("1001/filesP1001_FormalStudy_erf.csv", sep=",", h=T)
+dta_q_j <- read.table("1001/filesP1001_questionnaire.csv", sep=",", h=T)
+dta_c_j <- read.table("1001/filesP1001Calibration_erf.csv", sep=",", h=T)
+
+## quickly organize data
+# Calibration ratio
+dta_c_j <- dta_c_j[1,]
+dta_c_j$ParticipantID <- as.numeric(dta_c_j$ParticipantID)
+dta_c_j$CalibratedRatio <- as.numeric(dta_c_j$CalibratedRatio)
+
+dta_c <- rbind(dta_c_j, dta_c_w, dta_c_y)
+dta_c$ParticipantID <- as.factor(dta_c$ParticipantID)
+names(dta_c)[2] <- "UnityDistance"
+dta_c$CalibratedRatio <- 1.5 / dta_c$UnityDistance
+dta_c
+
+# Questionnaire
+dta_q <- rbind(dta_q_j, dta_q_w, dta_q_y)
+dta_q$ParticipantID <- as.factor(dta_q$ParticipantID)
+dta_q$Item <- as.factor(dta_q$Item)
+
+ggplot(dta_q, aes(x = Item, y = Response)) +
+  geom_boxplot(fill = "gray90") +
+  lims(y = c(1, 5)) +
+  coord_flip() +
+  theme_bw()
+
+tapply(dta_q$Response, dta_q$Item, mean)
+tapply(dta_q$Response, dta_q$ParticipantID, mean)
+
+# Experiment data
+dta_w <- subset(dta_w, dta_w$isPractice == "False")
+dta_w <- dta_w[,-3] # remove isPractice
+dta_y <- subset(dta_y, dta_y$isPractice == "False")
+dta_y <- dta_y[,-3] # remove isPractice
+
+## this data is with mountain
+dta_pilot <- rbind(dta_j, dta_w, dta_y) 
+dim(dta_pilot)
+names(dta_pilot)[1] <- "Participant"
+names(dta_pilot)[2] <- "trialID"
+
+dta_pilot[,c(1:18,27)] <- lapply(
+  dta_pilot[,c(1:18,27)], FUN = function(x) { as.factor(x)})
+
+# add RT and position error
+dta_pilot$RT <- dta_pilot$EndTime - dta_pilot$BeginTime
+dta_pilot$distErr <- sqrt((dta_pilot$AnsPos_X - dta_pilot$ResponsePos_X)^2 + 
+                      (dta_pilot$AnsPos_Z - dta_pilot$ResponsePos_Z)^2)
+
+str(dta_pilot) # data is loaded for further processing
+
+## Only the first response counts. 
+dta0 <- subset(dta_pilot, dta_pilot$PairCount == "0")
+dta1 <- subset(dta_pilot, dta_pilot$PairCount == "1")
+
+# copy past Ans target name and position
+dim(dta0)
+dim(dta1)
+
+dta0$OtherTargetPos_X <- dta1$AnsPos_X
+dta0$OtherTargetPos_Z <- dta1$AnsPos_Z
+dta0$OtherTargetName <- dta1$TargetName
+dta0$distTargets <- sqrt((dta0$OtherTargetPos_X - dta0$ResponsePos_X)^2 + 
+                          (dta0$OtherTargetPos_Z - dta0$ResponsePos_Z)^2)
+str(dta0)
+## Remove decoy responses
+dta0 <- subset(dta0, dta0$DecoyBaseline == "False")
+dta0 <- subset(dta0, dta0$DecoyTesting == "False")
+dta0[, c(32,36)]
+
+levels(dta0$Baseline) <- c("Testing", "Baseline")
+##########################################
+# check if turning direction is balanced, at the moment it's wrong
+# need to change in Unity
+##########################################
+head(dta0, n = 20)
+table(dta0$LayoutType, dta0$RotateDirection, dta0$Participant)
+
+## Remove outliers by each participant
+# https://stackoverflow.com/questions/67684451/apply-function-to-each-level-of-a-factor-participant-to-remove-outliers-based
+# https://neuraldatascience.io/5-eda/data_cleaning.html
+
+# Use z score and set the bar to 2.5
+dta0 <- dta0 |> group_by(Participant) |>
+  mutate(OutlierRT = RT >= mean(RT) + (2.5 * sd(RT)) | RT <= mean(RT) - (2.5 * sd(RT)),
+         OutlierDist = distErr >= mean(distErr) + (2.5 * sd(distErr)) | distErr <= mean(distErr) - (2.5 * sd(distErr)))
+
+dta_clean <- dta0[-c(which(dta0$OutlierDist == TRUE), which(dta0$OutlierRT == TRUE)),]
+
+# removed portion
+1 - (dim(dta_clean)[1]/dim(dta0)[1])
+
+# specifically for one pilot data
+idx.p <- which(dta_clean$Participant == "P1003")
+idx.cond <- which(dta_clean$ConditionBlockNum == 5 | dta_clean$ConditionBlockNum == 6 | dta_clean$ConditionBlockNum == 7)
+idx.phytar <- which(dta_clean$TargetType == "physicalTarget")
+dta_clean2 <- dta_clean[-Reduce(intersect, list(idx.p, idx.cond, idx.phytar)),]
+
+dim(dta_clean)
+dim(dta_clean2)
+
+##########################################
+# check if people answer correctly...
+# compare distErr and Ans, Target distance
+# check position response (distErr) remove inaccurate responses
+# dta_y's conditions and layouts (5,6,7) have some mistakes. Need to check that
+# Set a threshold for baseline distErr ... like 0.5?
+##########################################
+which(dta_clean2$distErr > dta_clean2$distTargets)
+
+
+# this graph is just for fun. It does not make lots of sense.
+dta_clean2 |> ggplot(aes(x=RT, y=distErr, color=SelfRotation)) +
+  geom_point() +
+  stat_smooth(aes(color = SelfRotation), method = "lm", se = F) +
+  facet_grid(TargetType ~ .) +
+  theme_bw()
+
+# Baseline vs. Testing
+# mean calculation
+dta_clean.mean <- dta_clean2 |> group_by(Participant, Baseline) |>
+  summarise(RT.mean = mean(RT),
+            distErr.mean = mean(distErr))
+
+ggplot(dta_clean2, aes(x=RT, fill=Baseline)) +
+  geom_histogram(aes(y=..density..), color= "black", alpha=0.2, position='identity', binwidth=.200) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.mean, aes(xintercept=RT.mean, color=Baseline),
+            linetype="dashed", linewidth=1) +
+  facet_grid(Participant~.) +
+  scale_fill_manual(values=c("red", "steelblue", "purple")) +
+  scale_color_manual(values=c("red", "steelblue", "purple")) 
+
+ggplot(dta_clean2, aes(x=distErr, fill=Baseline)) +
+  geom_histogram(aes(y=..density..), color= "black", alpha=0.4, position='identity', binwidth=.05) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.mean, aes(xintercept=distErr.mean, color=Baseline),
+             linetype="dashed", linewidth=1) +
+  facet_grid(Participant~.) +
+  scale_fill_manual(values=c("red", "steelblue", "purple")) +
+  scale_color_manual(values=c("red", "steelblue", "purple")) 
+
+#
+dta_clean.cond <- dta_clean |> group_by(Participant, Baseline, Condition) |>
+  summarise(RT.mean = mean(RT),
+            distErr.mean = mean(distErr))
+
+ggplot(dta_clean2, aes(x=RT, fill=Condition)) +
+  geom_histogram(aes(y=..density..), color= "black", alpha=0.4, position='identity', binwidth=.2) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.cond, aes(xintercept=RT.mean, color=Condition),
+  linetype="dashed", size=1) +
+  facet_grid(Participant~Baseline) +
+  scale_fill_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_color_manual(values=c("red", "steelblue", "purple", "cyan")) 
+
+ggplot(dta_clean, aes(x=distErr, fill=Condition)) +
+  geom_histogram(aes(y=..density..), color= "black", alpha=0.4, position='identity', binwidth=.05) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.cond, aes(xintercept=distErr.mean, color=Condition),
+             linetype="dashed", size=1) +
+  facet_grid(Participant~Baseline) +
+  scale_fill_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_color_manual(values=c("red", "steelblue", "purple", "cyan")) 
+#
+
+## Check if three decoys mess up people's performance badly
+# three decoys vs. two decoys
+dta_clean2 |> ggplot(aes(x=DecoyAmount, y=RT)) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               linetype = "solid", width = .2) +
+  scale_fill_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_color_manual(values=c("red", "steelblue", "purple", "cyan")) 
+
+dta_clean2 |> ggplot(aes(x=DecoyAmount, y=distErr)) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               linetype = "solid", width = .2) +
+  scale_fill_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_color_manual(values=c("red", "steelblue", "purple", "cyan")) 
+
+
+dta_by_p <- dta_clean2 |> group_by(Participant, Baseline, Condition) |>
+  summarise(rt_m = mean(RT),
+            dist_m = mean(distErr))
+  
+levels(dta_by_p$Baseline) <- c("Testing", "Baseline")
+
+dta_by_p |>
+  ggplot(aes(x=reorder(dta_by_p$Baseline, dta_by_p$rt_m, mean), y=rt_m)) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               linetype = "solid", width = .2) +
+  scale_fill_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_color_manual(values=c("red", "steelblue", "purple", "cyan"))
+
+# RT summarized by participants
+dta_by_p |>
+  ggplot(aes(x=reorder(dta_by_p$Baseline, dta_by_p$rt_m, mean), y=rt_m,
+             shape=Condition, group=Condition)) +
+  stat_summary(fun = mean, geom = "point", size = 2,
+               position = position_dodge(width=.2)) +
+  stat_summary(fun.data = mean_se, geom = "pointrange", linetype = "solid",
+               position = position_dodge(width=.2)) +
+  stat_summary(fun.y = mean, geom = "line",
+               position = position_dodge(width=.2),
+               linetype="dashed", size=.5) +
+  scale_fill_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_color_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_shape_manual(values=c(18, 17, 20, 15)) +
+  labs(x="Response Type", y="Reaction Time (s)") +
+  theme_bw() 
+
+# dist
+dta_by_p |>
+  ggplot(aes(x=reorder(dta_by_p$Baseline, dta_by_p$dist_m, mean), y=dist_m,
+             shape=Condition, group=Condition)) +
+  stat_summary(fun = mean, geom = "point", size = 2,
+               position = position_dodge(width=.2)) +
+  stat_summary(fun.data = mean_se, geom = "pointrange", linetype = "solid",
+               position = position_dodge(width=.2)) +
+  stat_summary(fun.y = mean, geom = "line",
+               position = position_dodge(width=.2),
+               linetype="dashed", size=.5) +
+  scale_fill_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_color_manual(values=c("red", "steelblue", "purple", "cyan")) +
+  scale_shape_manual(values=c(18, 17, 20, 15)) +
+  labs(x="Response Type", y="Absolut Position Error (m)") +
+  theme_bw() 
+
+# summary statistics
+dta_by_p |> group_by(Condition, Baseline) |>
+  summarise(rt.m = mean(rt_m),
+            rt.sd = sd(rt_m),
+            dist.m = mean(dist_m),
+            dist.sd = sd(dist_m))
+
+# delta RT vs. Presence
+dta_by_p2 <- dta_clean2 |> group_by(Participant, Baseline, Condition, TargetType, SelfRotation) |>
+  summarise(rt_m = mean(RT),
+            dist_m = mean(distErr))
+
+levels(dta_by_p2$Baseline) <- c("Testing", "Baseline")
+
+
+# physical static - virtual static
+a <- dta_by_p2 |> filter(Baseline == "Testing" & SelfRotation == "none" &
+                      TargetType == "physicalTarget") 
+b <- dta_by_p2 |> filter(Baseline == "Testing" & SelfRotation == "none" &
+                      TargetType == "virtualTarget") 
+a$deltaRT <- a$rt_m - b$rt_m
+
+# physical rotate - virtual rotate
+a2 <- dta_by_p2 |> filter(Baseline == "Testing" & SelfRotation == "rotate" &
+                      TargetType == "physicalTarget") 
+b2 <- dta_by_p2 |> filter(Baseline == "Testing" & SelfRotation == "rotate" &
+                      TargetType == "virtualTarget") 
+
+
+
+a2$deltaRT <- a2$rt_m - b2$rt_m
+
+dta_model <- rbind(a, a2)
+
+t.test(deltaRT ~ SelfRotation, data = dta_model, paired = TRUE)
+
+spes <- dta_q |> group_by(ParticipantID) |> summarise(m = mean(Response))
+
+dta_model$SPES <- rep(spes$m, 2)
+
+plot(dta_model$deltaRT[4:6], dta_model$SPES[4:6])
+plot(a2$rt_m, spes$m)
+
+# some models (n=3)
+# with presence?
+

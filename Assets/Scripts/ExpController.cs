@@ -55,8 +55,13 @@ public class ExpController : MonoBehaviour
     public int decoyNum = 0;
     public int decoyAmountThisTrial = 0;
     public List<int> rotationAngleList;
-    // rotate direction
-    public int[] directionTable = new int[4] {0, 0, 0, 0}; // VirtualLeft, VirtualRight, PhysicalLeft, PhysicalRight
+    // Rotate Direction Table for 16 trials
+    // Row: Physical Layout A, B, C, D
+    // Col: VirtualLeft, VirtualRight, PhysicalLeft, PhysicalRight
+    public int[,] directionTable = new int[4, 4] { { 0, 0, 0, 0 },
+                                                   { 0, 0, 0, 0 },
+                                                   { 0, 0, 0, 0 },
+                                                   { 0, 0, 0, 0 }}; 
     public int whichDirection;
 
     [Header("Procedures")]
@@ -131,7 +136,7 @@ public class ExpController : MonoBehaviour
 
     void Start()
     {
-        dataFilePath = Helpers.CreateDataPath(participantID);
+        dataFilePath = Helpers.CreateDataPath(participantID, "_erf");
         erfStudyWriter = new StreamWriter(dataFilePath, true);
         WriteHeader();
         dataList = new List<PointingData>();
@@ -159,10 +164,55 @@ public class ExpController : MonoBehaviour
         stripesVirtualTarget.SetActive(false);
         laser.SetActive(false);
         rotationCue.SetActive(false);
+
+        string xxx = "";
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                xxx += directionTable[i, j].ToString() + ",";
+            }
+            xxx += "\n";
+        }
+        Debug.LogWarning(xxx);
+
+
     }
 
     void Update()
     {
+
+        //if (Input.GetKeyDown(KeyCode.Q))
+        //{
+        //    if (trialNum < 3)
+        //    {
+        //        trialNum += 1;
+        //    }
+        //    else
+        //    {
+        //        trialNum = 0;
+        //        conditionBlockNum += 1;
+        //        Helpers.Shuffle(conditionArray);
+        //        if (conditionBlockNum < 8)
+        //        {
+        //            PreparePhyTargetsLayout();
+        //        }
+        //    }
+        //    PrepareCondition();
+
+        //    string xxx = "";
+        //    for (int i = 0; i < 4; i++)
+        //    {
+        //        for (int j = 0; j < 4; j++)
+        //        {
+        //            xxx += directionTable[i, j].ToString() + ",";
+        //        }
+        //        xxx += "\n";
+        //    }
+        //    Debug.LogWarning(xxx);
+
+        //}
+
 
         int trialIDTemp = conditionBlockNum*4 + trialNum;
         if (Alignment.isCalibrated && trialIDTemp > 4 && buildFor == BuildFor.Practice)
@@ -474,6 +524,10 @@ public class ExpController : MonoBehaviour
         trialNum = 0;
         conditionBlockNum = 0;
         currentTime = 0;
+        directionTable = new int[4, 4] { { 0, 0, 0, 0 },
+                                         { 0, 0, 0, 0 },
+                                         { 0, 0, 0, 0 },
+                                         { 0, 0, 0, 0 }};
         PreparePhyTargetsLayout();
         InitializePhysicalTargets();                                
         StartTrialPanel.SetActive(true);
@@ -574,32 +628,38 @@ public class ExpController : MonoBehaviour
         Helpers.Shuffle(rotationAngleList);
 
         // balance direction
+        int rowNum = 0;
+        if (currentPhyTargetsLayout == PhyTargetsLayouts.A) rowNum = 0;
+        else if (currentPhyTargetsLayout == PhyTargetsLayouts.B) rowNum = 1;
+        else if (currentPhyTargetsLayout == PhyTargetsLayouts.C) rowNum = 2;
+        else rowNum = 3;
+
         if (currentRotation == SelfRotation.rotate)
         {
             if (currentTarget == Targets.virtualTarget)
             {
                 whichDirection = (UnityEngine.Random.value < 0.5f) ? 0 : 1; // left or right?
-                if (directionTable[whichDirection] < 4)
+                if (directionTable[rowNum, whichDirection] == 0)
                 {
-                    directionTable[whichDirection] += 1;
+                    directionTable[rowNum, whichDirection] += 1;
                 }
                 else
                 {
                     whichDirection = (whichDirection == 0) ? 1 : 0;
-                    directionTable[whichDirection] += 1;
+                    directionTable[rowNum, whichDirection] += 1;
                 }
             }
             else
             {
                 whichDirection = (UnityEngine.Random.value < 0.5f) ? 2 : 3; // left or right?
-                if (directionTable[whichDirection] < 4)
+                if (directionTable[rowNum, whichDirection] == 0)
                 {
-                    directionTable[whichDirection] += 1;
+                    directionTable[rowNum, whichDirection] += 1;
                 }
                 else
                 {
                     whichDirection = (whichDirection == 2) ? 3 : 2;
-                    directionTable[whichDirection] += 1;
+                    directionTable[rowNum, whichDirection] += 1;
                 }
             }
         }
@@ -905,10 +965,10 @@ public class ExpController : MonoBehaviour
     private void WriteHeader()
     {
         erfStudyWriter.Write(
-            "trialID"                       + "," +
             "Participant"                   + "," +
+            "trialID"                       + "," +
             "isPractice"                    + "," +
-            "LayoutBlockNum"                + "," +
+            //"LayoutBlockNum"                + "," +
             "ConditionBlockNum"             + "," +
             "TrialNum"                      + "," +
             "LayoutType"                    + "," +
@@ -927,12 +987,10 @@ public class ExpController : MonoBehaviour
             "BeginTime"                     + "," + // RT
             "EndTime"                       + "," +
             "ResponsePos_X"                 + "," + // position error
-            "ResponsePos_Y"                 + "," + 
             "ResponsePos_Z"                 + "," + 
             "AnsPos_X"                      + "," + 
-            "AnsPos_Y"                      + "," + 
             "AnsPos_Z"                      + "," + 
-            "TargetName"                    + "," +
+            "AnsName"                       + "," +
             "ControllerPos_X"               + "," + 
             "ControllerPos_Y"               + "," + 
             "ControllerPoss_Z"              + "\n"); 
@@ -1039,7 +1097,7 @@ public class ExpController : MonoBehaviour
                 "P" + data.participantID.ToString()        + "," +
                 data.trialID.ToString()                    + "," +
                 data.isPractice                            + "," +
-                data.layoutBlockNum                        + "," +
+                //data.layoutBlockNum                        + "," +
                 data.conditionBlockNum                     + "," +
                 data.trialNum                              + "," +
                 data.currentPhyTargetsLayout               + "," +
@@ -1058,10 +1116,8 @@ public class ExpController : MonoBehaviour
                 data.beginTime.ToString("F6")              + "," +
                 data.endTime.ToString("F6")                + "," +
                 data.responsePos.x.ToString("F6")          + "," +
-                data.responsePos.y.ToString("F6")          + "," +
                 data.responsePos.z.ToString("F6")          + "," +
                 data.groundTruthPos.x.ToString("F6")       + "," +
-                data.groundTruthPos.y.ToString("F6")       + "," +
                 data.groundTruthPos.z.ToString("F6")       + "," +
                 data.groundTruthName                       + "," +
                 data.controllerPos.x.ToString("F6")        + "," +
@@ -1075,7 +1131,7 @@ public class ExpController : MonoBehaviour
             trialID                                                                             + ", " +
             "Participant: P" +          participantID.ToString()                                + ", " +
             "isPractice: " +            isPractice                                              + ", " +
-            "Layout Block Num: " +      layoutBlockNum                                          + ", " +
+            //"Layout Block Num: " +      layoutBlockNum                                          + ", " +
             "Condition Block Num: " +   conditionBlockNum                                       + ", " +
             "Trial: " +                 trialNum                                                + ", " +
             "Layout Type: " +           currentPhyTargetsLayout.ToString()                      + ", " +
@@ -1182,7 +1238,7 @@ public static class Helpers
 
     public static string CreateDataPath(int id, string note = "")
     {
-        string fileName = "P" + id.ToString() + note + "_erf.csv";
+        string fileName = "P" + id.ToString() + note + ".csv";
 #if UNITY_EDITOR
         return Application.dataPath + "/Data/" + fileName;
 #elif UNITY_ANDROID

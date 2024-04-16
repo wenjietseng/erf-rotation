@@ -38,10 +38,7 @@ public class QuestionnaireController : MonoBehaviour
         // fadeEffect = this.GetComponent<FadeEffect>();
         // fadeEffect.fadeInEffect();
 
-
-        // get this part on Windows and Quest again...
-        string questionnairePath = GetDataPath();
-        // Application.dataPath + "/Data/" + "P" + participantID.ToString("F0") + "_questionnaire.csv";
+        string questionnairePath = Helpers.CreateDataPath(participantID, "_questionnaire");
         questionnaireWriter = new StreamWriter(questionnairePath, true);
 
         isStart = false;
@@ -228,19 +225,5 @@ public class QuestionnaireController : MonoBehaviour
             this.participantID = participantID;
             this.item = item;
         }
-    }
-
-    private string GetDataPath()
-    {
-        string fileName = "P" + participantID.ToString() + "_questionnaire.csv";
-#if UNITY_EDITOR
-        return Application.dataPath + "/Data/" + fileName;
-#elif UNITY_ANDROID
-        return Application.persistentDataPath + fileName;
-#elif UNITY_IPHONE
-        return Application.persistentDataPath + "/" + fileName;
-#else
-        return Application.dataPath + "/" + fileName;
-#endif
     }
 }

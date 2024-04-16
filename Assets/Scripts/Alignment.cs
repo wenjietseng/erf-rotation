@@ -65,7 +65,7 @@ public class Alignment : MonoBehaviour
     void Start()
     {
         participantID = GameObject.Find("Experiment Controller").GetComponent<ExpController>().participantID;
-        calibrationDistanceFilePath = Helpers.CreateDataPath(participantID, "Calibration");
+        calibrationDistanceFilePath = Helpers.CreateDataPath(participantID, "_calibration");
         calibrationWriter = new StreamWriter(calibrationDistanceFilePath, true);
 
         laserTransform = laser.GetComponent<Transform>();
@@ -171,7 +171,7 @@ public class Alignment : MonoBehaviour
                 // physicalCube.SetActive(false);
 
                 // write a file
-                calibrationWriter.Write("ParticipantID,CalibratedRatio\n");
+                calibrationWriter.Write("ParticipantID,UnityDistance\n");
                 calibrationWriter.Write(participantID + "," + calibratedDistance.ToString("F6") + "\n");
                 calibrationWriter.Flush();
                 calibrationWriter.Close();
