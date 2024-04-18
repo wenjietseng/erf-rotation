@@ -1,0 +1,204 @@
+---
+title: "Pilot Data Analysis"
+author: "Wen-Jie Tseng"
+date: "2024-04-17"
+# output: html_document
+output: beamer_presentation
+# output:
+#   ioslides_presentation:
+#     widescreen: true
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source(file = "pilot.R")
+```
+
+## Current Setup
+
+- Video
+- Conditions
+- Targets layout
+
+## Conditions
+
++---------------+-----------------+--------------------+
+|               | 0deg static     | 120deg rotate      |
++===============+=================+====================+
+| Virtual       | - 2 or 3 decoys | - 2 or 3 decoys    |
+|               |                 | - 40/80 or 0/40/80 |
++---------------+-----------------+--------------------+
+| Physical      | - 2 or 3 decoys | - 2 or 3 decoys    |
+|               |                 | - 40/80 or 0/40/80 |
++---------------+-----------------+--------------------+
+
+## Physical Targets Layout
+
+```{r, message=FALSE, results = FALSE, echo=FALSE}
+targets <- rep(c("Blue", "Green"), 4)
+layouts <- rep(c("A", "B", "C", "D"), each = 2)
+x <- c(-0.87, -0.67, -0.2, 0.8, 0.3, -0.7, 0.67, 1.5)
+z <- c(1.5, 2.5, 2.5, 2.5, 1.5, 1.5, 2.5, 1.5)
+
+layout_plot <- data.frame(targets, layouts, x, z)
+
+layout_plot |> ggplot(aes(x=x, y=z, color=targets)) +
+  geom_point(size=4) +
+  facet_wrap(layouts ~., nrow = 2) + 
+  scale_color_manual(values=c("blue", "green")) +
+  lims(x=c(-1.6, 1.6), y = c(-0.2,2.7)) +
+  geom_vline(xintercept=0, linetype="dotted") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  geom_hline(yintercept=1.5, linetype="dotted", linewidth=0.2) +
+  geom_hline(yintercept=2.5, linetype="dotted", linewidth=0.2) +
+  theme_bw()
+
+```
+
+
+
+## Virtual/Decoy Targets Layout
+
+Randomly generated from 
+- X: -1,1
+- Z: 1.5, 2.5, 3.5 three depths
+
+## Reaction Time by P and Baseline/Testing
+
+```{r, message=FALSE, results = FALSE, echo=FALSE}
+ggplot(dta_clean2, aes(x=RT, fill=Baseline)) +
+  geom_histogram(aes(y=after_stat(density)), color= "black", alpha=0.2, position='identity', binwidth=.200) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.mean, aes(xintercept=RT.mean, color=Baseline),
+            linetype="dashed", linewidth=1) +
+  facet_grid(Participant~.) +
+  scale_fill_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) 
+```
+
+## Absolute Distance Error by P and Baseline/Testing
+
+```{r, message=FALSE, results = FALSE, echo=FALSE}
+ggplot(dta_clean2, aes(x=distErr, fill=Baseline)) +
+  geom_histogram(aes(y=after_stat(density)), color= "black", alpha=0.2, position='identity', binwidth=.05) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.mean, aes(xintercept=distErr.mean, color=Baseline),
+             linetype="dashed", linewidth=1) +
+  facet_grid(Participant~.) +
+  scale_fill_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) 
+
+```
+
+## Reaction Time by P, Conditions and Baseline/Testing
+```{r, message=FALSE, results = FALSE, echo=FALSE}
+ggplot(dta_clean2, aes(x=RT, fill=Condition)) +
+  geom_histogram(aes(y=after_stat(density)), color= "black", alpha=0.2, position='identity', binwidth=.2) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.cond, aes(xintercept=RT.mean, color=Condition),
+  linetype="dashed", linewidth=1) +
+  facet_grid(Participant~Baseline) +
+  scale_fill_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) 
+```
+
+## Absolute Distance Error by P, Conditions and Baseline/Testing
+```{r, message=FALSE, results = FALSE, echo=FALSE}
+ggplot(dta_clean, aes(x=distErr, fill=Condition)) +
+  geom_histogram(aes(y=after_stat(density)), color= "black", alpha=0.2, position='identity', binwidth=.05) +
+  geom_density(alpha=.2) +
+  geom_vline(data=dta_clean.cond, aes(xintercept=distErr.mean, color=Condition),
+             linetype="dashed", linewidth=1) +
+  facet_grid(Participant~Baseline) +
+  scale_fill_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) 
+```
+
+## Decoy Amounts and RT
+
+```{r, , message=FALSE, results = FALSE, echo=FALSE}
+dta_clean2 |> ggplot(aes(x=DecoyAmount, y=RT)) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  geom_errorbar(data=ci.rt.by.decoy,
+                aes(ymin = RT - ci, ymax = RT + ci), width = .2) +
+  theme_bw()
+```
+
+
+## Decoy Amounts and Absolute Distance Error
+
+```{r, , message=FALSE, results = FALSE, echo=FALSE}
+dta_clean2 |> ggplot(aes(x=DecoyAmount, y=distErr)) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  geom_errorbar(data=ci.dist.by.decoy,
+                aes(ymin = distErr - ci, ymax = distErr + ci), width = .2) +
+  theme_bw()
+```
+
+
+## Reactions Times by Baseline/Testing
+
+```{r, , message=FALSE, results = FALSE, echo=FALSE}
+baseline.ci.rt |>
+  ggplot(aes(x=reorder(Baseline, RT, mean),
+             y=RT)) +
+    geom_pointrange(aes(ymin = RT - ci, ymax = RT + ci)) +
+    labs(x="Response Type", y="Reaction Time (s)") +
+    theme_bw()
+
+
+```
+
+
+## Absolute Distance Error by Baseline/Testing
+
+```{r, , message=FALSE, results = FALSE, echo=FALSE}
+baseline.ci.dist |>
+  ggplot(aes(x=reorder(Baseline, distErr, mean),
+             y=distErr)) +
+  geom_pointrange(aes(ymin = distErr - ci, ymax = distErr + ci)) +
+  labs(x="Response Type", y="Absolut Position Error (m)") +
+  theme_bw()
+```
+
+
+## Reactions Times by Baseline/Testing and Conditions
+
+```{r, , message=FALSE, results = FALSE, echo=FALSE}
+base.cond.ci.rt |>
+  ggplot(aes(x=reorder(Baseline, RT, mean), y=RT,
+             shape=Condition, group=Condition, color=Condition)) +
+  geom_pointrange(aes(ymin = RT - ci, ymax = RT + ci),
+                  position=position_dodge(width=.1)) +
+  geom_line(linetype="dashed", size=.5,
+            position=position_dodge(width=.1)) +
+  scale_shape_manual(values=c(18, 17, 20, 15)) +
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
+  labs(x="Response Type", y="Reaction Time (s)") +
+  theme_bw()
+```
+
+
+## Absolute Distance Error by Baseline/Testing and Conditions
+
+```{r, , message=FALSE, results = FALSE, echo=FALSE}
+base.cond.ci.dist |>
+  ggplot(aes(x=reorder(Baseline, distErr, mean), y=distErr,
+             shape=Condition, group=Condition, color=Condition)) +
+  geom_pointrange(aes(ymin = distErr - ci, ymax = distErr + ci),
+                  position=position_dodge(width=.1)) +
+  geom_line(linetype="dashed", size=.5,
+            position=position_dodge(width=.1)) +
+  scale_shape_manual(values=c(18, 17, 20, 15)) +
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
+  labs(x="Response Type", y="Absolut Position Error (m)") +
+  theme_bw()
+```
+
+
+## Decisions to Discuss
+
+- With and without mountain (allocentric vs. egocentric)
+- Should virtual and physical targets layouts be the same?
+- A restart function when the performance is too bad
+- Preregistration
