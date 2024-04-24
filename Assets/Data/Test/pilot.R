@@ -10,13 +10,13 @@
 # - LayoutBlockNum can be removed
 # - move TargetName to the other factor variables
 
+## get pilot data
+setwd("Documents/erf-rotation/Assets/Data/Test/")
+
 ## load packages
 library(Rmisc) # plyr and dplyr imcompatible. Need to look into code implementation
 library(dplyr)
 library(ggplot2)
-
-## get pilot data
-# setwd("Documents/erf-rotation/Assets/Data/Test/")
 
 # y
 # conditions and layouts (5,6,7) have some mistakes. Need to check that
@@ -287,6 +287,51 @@ base.cond.ci.rt |>
   scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
   labs(x="Response Type", y="Reaction Time (s)") +
   theme_bw()
+
+
+# improved plot
+
+base.cond.ci.rt2 <- summarySEwithin(data = dta_clean2,
+                                   measurevar = "RT",
+                                   withinvars = c("TargetType", "SelfRotation", "Baseline"),
+                                   idvar = "Participant")
+base.cond.ci.rt2
+base.cond.ci.rt
+
+base.target.ci.rt <- summarySEwithin(data = dta_clean2,
+                                   measurevar = "RT",
+                                   withinvars = c("TargetType", "Baseline"),
+                                   idvar = "Participant")
+
+base.target.ci.rt <- subset(base.target.ci.rt, Baseline == "Baseline")
+base.cond.ci.rt2 <- subset(base.cond.ci.rt2, Baseline == "Testing")
+
+base.cond.ci.rt2 <- base.cond.ci.rt2[, -2]
+
+dta.adapt.plot <- rbind(base.cond.ci.rt2, base.target.ci.rt)
+
+dta.adapt.plot$self.rotation <- c("none", "rotate", "none", "rotate", "none", "none")
+dta.adapt.plot$for.plot <- c("none", "rotate", "none", "rotate", "rotate", "rotate")
+
+
+dta.adapt.plot |>
+  ggplot(aes(x=reorder(Baseline, RT, mean), y=RT,
+             shape=self.rotation, color=TargetType)) +
+  geom_pointrange(aes(ymin = RT - ci, ymax = RT + ci),
+                  position=position_dodge(width=.1)) +
+  geom_line(aes(group=interaction(TargetType, self.rotation)),
+            linetype="dashed", linewidth=.5, 
+            position=position_dodge(width=.1)) +
+  geom_line(aes(group=interaction(TargetType, for.plot)),
+            linetype="dashed", linewidth=.5, 
+            position=position_dodge(width=.1)) +
+  scale_shape_manual(values=c(18, 17, 20, 15)) +
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107", "#004D40")) +
+  labs(x="Response Type", y="Reaction Time (s)") +
+  theme_bw()
+
+
+
 
 # dist
 base.cond.ci.dist |>
