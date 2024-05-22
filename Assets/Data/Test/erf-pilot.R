@@ -236,6 +236,44 @@ dta_clean2 |> ggplot(aes(x=DecoyAmount, y=distErr)) +
   theme_bw()
 
 
+## Check decoys, baseline vs. testing
+str(dta_clean2)
+dta.decoy.check <- subset(dta_clean2, dta_clean2$Baseline == "Testing")
+
+dta.decoy.check |> ggplot(aes(x=DecoyAmount, y=RT)) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar",
+               linetype = "solid", width = .2) +
+  facet_grid(Participant~.) +
+  theme_bw()
+
+
+dta.decoy.check |> ggplot(aes(x=DecoyAmount, y=distErr)) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar",
+               linetype = "solid", width = .2) +
+  facet_grid(Participant~.) +
+  theme_bw()
+
+t.test(RT ~ DecoyAmount, data = dta.decoy.check)
+t.test(distErr ~ DecoyAmount, data = dta.decoy.check)
+
+# an opportunity to run a linear mixed model here
+# - participant: randome effect
+# - decoy: fixed effect
+
+# https://psych252.github.io/psych252book/
+library("lme4")
+lmer(formula = RT ~ DecoyAmount + (1 | Participant),
+     data = dta.decoy.check) |> 
+  summary()
+
+
+fit.compact <- lmer(formula = RT ~ 1 + (1 | Participant),
+                    data = dta.decoy.check)
+fit.augmented <- lmer(formula = RT ~ DecoyAmount + (1 | Participant),
+                    data = dta.decoy.check)
+anova(fit.compact, fit.augmented)
 ################################# Baseline
 
 baseline.ci.rt <- summarySEwithin(data = dta_clean2,
