@@ -13,6 +13,7 @@ points, or button 2 to start again. */
 
 public class Alignment : MonoBehaviour
 {
+    public bool disableAlignmentProcess;
     /* Attach this script to an empty gameObject that is the parent of all the objects that
     should be impacted by the alignment, including the reference points.
     The XR camera / controllers shouldn't be a children of that object, as it's position doesnt
@@ -64,125 +65,142 @@ public class Alignment : MonoBehaviour
 
     void Start()
     {
-        participantID = GameObject.Find("Experiment Controller").GetComponent<ExpController>().participantID;
-        calibrationDistanceFilePath = Helpers.CreateDataPath(participantID, "_calibration");
-        calibrationWriter = new StreamWriter(calibrationDistanceFilePath, true);
+        if (!disableAlignmentProcess)
+        {
+            participantID = GameObject.Find("Experiment Controller").GetComponent<ExpController>().participantID;
+            calibrationDistanceFilePath = Helpers.CreateDataPath(participantID, "_calibration");
+            calibrationWriter = new StreamWriter(calibrationDistanceFilePath, true);
 
-        laserTransform = laser.GetComponent<Transform>();
-        virtualPositionA = referencePointA.transform.position; 
-        virtualPositionB = referencePointB.transform.position;
-        startTrialPanel.SetActive(false);
+            laserTransform = laser.GetComponent<Transform>();
+            virtualPositionA = referencePointA.transform.position; 
+            virtualPositionB = referencePointB.transform.position;
+            startTrialPanel.SetActive(false);
+        }
+        else
+        {
+            referencePointA.SetActive(false);
+            referencePointB.SetActive(false);
+
+            alignmentState = 3;
+            isCalibrated = true;
+            laser.SetActive(false);
+            startTrialPanel.SetActive(true);
+            passthroughLayer.textureOpacity = 0.0f;
+            passthroughLayer.enabled = false;
+        }
     }
 
     void Update()
     {
-
-        if (alignmentState != 3)
+        if (!disableAlignmentProcess)
         {
-            if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+            if (alignmentState != 3)
             {
-                laser.SetActive(true);
-                laserTransform.position = Vector3.Lerp(controller.transform.position, hit.point, .5f); // move laser to the middle
-                laserTransform.LookAt(hit.point); // rotate and face the hit point
-                laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(controller.transform.position, hit.point));
+                if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+                {
+                    laser.SetActive(true);
+                    laserTransform.position = Vector3.Lerp(controller.transform.position, hit.point, .5f); // move laser to the middle
+                    laserTransform.LookAt(hit.point); // rotate and face the hit point
+                    laserTransform.localScale = new Vector3(laserTransform.localScale.x, laserTransform.localScale.y, Vector3.Distance(controller.transform.position, hit.point));
+                }
+                else
+                {
+                    // make sure they won't be visible directly when displaying 
+                    if (laser.activeSelf) laser.transform.position = Vector3.zero;
+                    laser.SetActive(false);
+                }
             }
-            else
-            {
-                // make sure they won't be visible directly when displaying 
-                if (laser.activeSelf) laser.transform.position = Vector3.zero;
-                laser.SetActive(false);
-            }
-        }
 
-        if (alignmentState == 0)
-        {
-            // Start of the alignment
-            // When button 1 pressed, get the position where the reference point A should be
-            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
+            if (alignmentState == 0)
             {
-                // realPositionA = controller.transform.position;
-                realPositionA = hit.point;
-                Debug.Log("Point A set");
+                // Start of the alignment
+                // When button 1 pressed, get the position where the reference point A should be
+                if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
+                {
+                    // realPositionA = controller.transform.position;
+                    realPositionA = hit.point;
+                    Debug.Log("Point A set");
                 
-                alignmentState = 1;
+                    alignmentState = 1;
+                }
             }
-        }
-        else if (alignmentState == 1)
-        {
-            // When button 1 pressed again, get the position where the reference point B should be
-            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
-            {    
-                realPositionB = hit.point;
-                Debug.Log("Point B set");
+            else if (alignmentState == 1)
+            {
+                // When button 1 pressed again, get the position where the reference point B should be
+                if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
+                {    
+                    realPositionB = hit.point;
+                    Debug.Log("Point B set");
 
-                // A little bit of geometry to rotate, translate and rescale the parent of the objects,
-                // to make the reference points match. 
-                //Note that the rotation should always be done before the translation and rescaling.
+                    // A little bit of geometry to rotate, translate and rescale the parent of the objects,
+                    // to make the reference points match. 
+                    //Note that the rotation should always be done before the translation and rescaling.
 
-                // Rotate
-                Vector3 virtualVector = virtualPositionB - virtualPositionA;
-                // Debug.LogWarning(virtualPositionA.ToString("F4") + "a");
-                // Debug.LogWarning(virtualPositionB.ToString("F4") + "b");
+                    // Rotate
+                    Vector3 virtualVector = virtualPositionB - virtualPositionA;
+                    // Debug.LogWarning(virtualPositionA.ToString("F4") + "a");
+                    // Debug.LogWarning(virtualPositionB.ToString("F4") + "b");
 
-                Vector3 virtualVectorXZ = new Vector3(virtualVector.x, 0, virtualVector.z);
-                Vector3 realVector = realPositionB - realPositionA;
-                // Debug.LogWarning(realVector.ToString("F3") + "real vec");
+                    Vector3 virtualVectorXZ = new Vector3(virtualVector.x, 0, virtualVector.z);
+                    Vector3 realVector = realPositionB - realPositionA;
+                    // Debug.LogWarning(realVector.ToString("F3") + "real vec");
 
-                Vector3 realVectorXZ = new Vector3(realVector.x, 0, realVector.z);
-                Quaternion rotationOffset = Quaternion.FromToRotation(virtualVectorXZ, realVectorXZ);
-                transform.rotation = rotationOffset * transform.rotation;
-                virtualPositionA = referencePointA.transform.position; 
-                virtualPositionB = referencePointB.transform.position;
+                    Vector3 realVectorXZ = new Vector3(realVector.x, 0, realVector.z);
+                    Quaternion rotationOffset = Quaternion.FromToRotation(virtualVectorXZ, realVectorXZ);
+                    transform.rotation = rotationOffset * transform.rotation;
+                    virtualPositionA = referencePointA.transform.position; 
+                    virtualPositionB = referencePointB.transform.position;
 
-                // Rescale 
-                float scaleFactor = (realPositionB-realPositionA).magnitude / (virtualPositionB-virtualPositionA).magnitude;
-                transform.localScale =  transform.localScale * scaleFactor;
-                virtualPositionA = referencePointA.transform.position; 
-                virtualPositionB = referencePointB.transform.position;
+                    // Rescale 
+                    float scaleFactor = (realPositionB-realPositionA).magnitude / (virtualPositionB-virtualPositionA).magnitude;
+                    transform.localScale =  transform.localScale * scaleFactor;
+                    virtualPositionA = referencePointA.transform.position; 
+                    virtualPositionB = referencePointB.transform.position;
 
-                // Debug.LogWarning((realPositionA-virtualPositionA).ToString("F4"));
+                    // Debug.LogWarning((realPositionA-virtualPositionA).ToString("F4"));
 
-                // Translate 
-                transform.position = transform.position + new Vector3((realPositionA-virtualPositionA).x, 0, (realPositionA-virtualPositionA).z);
+                    // Translate 
+                    transform.position = transform.position + new Vector3((realPositionA-virtualPositionA).x, 0, (realPositionA-virtualPositionA).z);
 
-                Debug.Log("Alignment done, push button 1 again to confirm, button 2 to restart");
+                    Debug.Log("Alignment done, push button 1 again to confirm, button 2 to restart");
                 
-                alignmentState = 2;
+                    alignmentState = 2;
+                }
             }
-        }
-        else if (alignmentState==2)
-        {
-            // The alignment is done.
-            // When button 1 pressed, stop and hide reference points
-            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch)){
-                calibratedDistance = Vector3.Distance(referencePointA.transform.position, referencePointB.transform.position);
-                // Debug.LogWarning("Calibrated distance = " + calibratedDistance.ToString("F3"));
-                referencePointA.SetActive(false);
-                referencePointB.SetActive(false);
+            else if (alignmentState==2)
+            {
+                // The alignment is done.
+                // When button 1 pressed, stop and hide reference points
+                if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch)){
+                    calibratedDistance = Vector3.Distance(referencePointA.transform.position, referencePointB.transform.position);
+                    // Debug.LogWarning("Calibrated distance = " + calibratedDistance.ToString("F3"));
+                    referencePointA.SetActive(false);
+                    referencePointB.SetActive(false);
 
-                alignmentState = 3;
-                isCalibrated = true;
-                laser.SetActive(false);
-                startTrialPanel.SetActive(true);
-                passthroughLayer.textureOpacity = 0.0f;
-                passthroughLayer.enabled = false;
-                // disable the renderer of both physical targets
-                // physicalCube.GetComponent<Renderer>().enabled = false;
-                // physicalCube.SetActive(false);
+                    alignmentState = 3;
+                    isCalibrated = true;
+                    laser.SetActive(false);
+                    startTrialPanel.SetActive(true);
+                    passthroughLayer.textureOpacity = 0.0f;
+                    passthroughLayer.enabled = false;
+                    // disable the renderer of both physical targets
+                    // physicalCube.GetComponent<Renderer>().enabled = false;
+                    // physicalCube.SetActive(false);
 
-                // write a file
-                calibrationWriter.Write("ParticipantID,UnityDistance\n");
-                calibrationWriter.Write(participantID + "," + calibratedDistance.ToString("F6") + "\n");
-                calibrationWriter.Flush();
-                calibrationWriter.Close();
-            }
+                    // write a file
+                    calibrationWriter.Write("ParticipantID,UnityDistance\n");
+                    calibrationWriter.Write(participantID + "," + calibratedDistance.ToString("F6") + "\n");
+                    calibrationWriter.Flush();
+                    calibrationWriter.Close();
+                }
 
-            // When button 2 pressed, start again
-            if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.LTouch)){
-                virtualPositionA = referencePointA.transform.position;
-                virtualPositionB = referencePointB.transform.position;
+                // When button 2 pressed, start again
+                if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.LTouch)){
+                    virtualPositionA = referencePointA.transform.position;
+                    virtualPositionB = referencePointB.transform.position;
         
-                alignmentState = 0;
+                    alignmentState = 0;
+                }
             }
         }
     }

@@ -15,8 +15,6 @@ public class ExpController : MonoBehaviour
     /// 
     /// 
     /// </summary>
-    // Start is called before the first frame update
-
     [Header("User Info")]
     public int participantID = 0;
     public enum BuildFor {Practice = 0, FormalStudy = 1};
@@ -39,7 +37,7 @@ public class ExpController : MonoBehaviour
                                              {2, 1, 4, 3},
                                              {3, 4, 1, 2},
                                              {4, 2, 3, 1}};
-    public enum PhyTargetsLayouts {A = 1, B = 2, C = 3, D = 4};
+    public enum PhyTargetsLayouts {A = 1, B = 2, C = 3, D = 4, Pracitce = 5};
     public PhyTargetsLayouts currentPhyTargetsLayout;
     // 4 conditions, virtual/physical X static/rotate, four trials form one block. 8 blocks in total.
     // In each physical layout, repeat 2 blocks
@@ -80,6 +78,7 @@ public class ExpController : MonoBehaviour
     public static bool isStartTrialPanelTriggered;
 
     [Header("Stimuli and Materials")]
+    public GameObject mountains;
     public GameObject bluePhysicalTarget;
     public GameObject greenPhysicalTarget;
     public GameObject blueVirtualTarget;
@@ -108,12 +107,16 @@ public class ExpController : MonoBehaviour
     public GameObject stripesReticle;
     public GameObject ans;
     public GameObject groundTruth;
+
+    // Remove them in the procedure: We use randomized for testing
     Vector3 firstBaselineResponse;
     Vector3 secondBaselineResponse;
-    Vector3 firstTestResponse;
-    Vector3 secondTestResponse;
     Vector3 decoy_firstBaselineResponse;
     Vector3 decoy_secondBaselineResponse;
+    // Remove them in the procedure
+
+    Vector3 firstTestResponse;
+    Vector3 secondTestResponse;
     Vector3 decoy_firstTestResponse;
     Vector3 decoy_secondTestResponse;
     Vector3 responsePos;
@@ -132,7 +135,11 @@ public class ExpController : MonoBehaviour
     float lerpTimeElapsed = 0;
     float lerpDuration = 1;
     int checkPhysicalLayout = 0;
-    
+
+    [Header("Lighting")]
+    //https://www.youtube.com/watch?v=OIcKW_9bHqQ
+
+    public LightingTesting lightingControl;
 
     void Start()
     {
@@ -164,6 +171,7 @@ public class ExpController : MonoBehaviour
         stripesVirtualTarget.SetActive(false);
         laser.SetActive(false);
         rotationCue.SetActive(false);
+        mountains.SetActive(false);
 
         string xxx = "";
         for (int i = 0; i < 4; i++)
@@ -215,7 +223,8 @@ public class ExpController : MonoBehaviour
 
 
         int trialIDTemp = conditionBlockNum*4 + trialNum;
-        if (Alignment.isCalibrated && trialIDTemp > 4 && buildFor == BuildFor.Practice)
+
+        if (Alignment.isCalibrated && trialIDTemp > 3 && buildFor == BuildFor.Practice)
         {
             if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.RTouch))
             {
@@ -241,104 +250,104 @@ public class ExpController : MonoBehaviour
             {
                 currentTime += Time.deltaTime;
                 
-                if (isBaselineMeasure)
-                {
-                    if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
-                    {
-                        hitPoint = hit.point;
-                        UpdateLaser(hitPoint);
-                        UpdateReticle(hitPoint);
+                //if (isBaselineMeasure)
+                //{
+                //    if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+                //    {
+                //        hitPoint = hit.point;
+                //        UpdateLaser(hitPoint);
+                //        UpdateReticle(hitPoint);
                     
-                        if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
-                        {
-                            // record data
-                            responsePos = hitPoint;
-                            endTimeStamp = currentTime;
-                            AddData();
+                //        if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
+                //        {
+                //            // record data
+                //            responsePos = hitPoint;
+                //            endTimeStamp = currentTime;
+                //            AddData();
 
-                            if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns());
+                //            if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns());
 
-                            // prepare the next target
-                            if (pairCounter == 0)
-                            {
-                                beginTimeStamp = currentTime;
-                                firstBaselineResponse = responsePos;
-                            }
-                            else
-                            {
-                                secondBaselineResponse = responsePos;
-                            }
-                            pairCounter += 1;
+                //            // prepare the next target
+                //            if (pairCounter == 0)
+                //            {
+                //                beginTimeStamp = currentTime;
+                //                firstBaselineResponse = responsePos;
+                //            }
+                //            else
+                //            {
+                //                secondBaselineResponse = responsePos;
+                //            }
+                //            pairCounter += 1;
                             
-                            if (pairCounter == 2)
-                            {
-                                // reset variables
-                                isBaselineMeasure = false;
-                                DisablePointing();
-                                StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
-                                pairCounter = 0;
-                                isDecoyRunning = true;
+                //            if (pairCounter == 2)
+                //            {
+                //                // reset variables
+                //                isBaselineMeasure = false;
+                //                DisablePointing();
+                //                StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                //                pairCounter = 0;
+                //                isDecoyRunning = true;
 
-                                StartCoroutine(ShortPauseBeforeNextDecoy(5f));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        DisablePointing();
-                        if (reticle != null) reticle.position = reticleGameObjects.transform.position;
-                    }
-                }
+                //                StartCoroutine(ShortPauseBeforeNextDecoy(5f));
+                //            }
+                //        }
+                //    }
+                //    else
+                //    {
+                //        DisablePointing();
+                //        if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                //    }
+                //}
 
                 if (isDecoyRunning && decoyNum < decoyAmountThisTrial)
                 {
-                    if (isDecoyBaseline)
-                    {
-                        if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
-                        {
-                            hitPoint = hit.point;
-                            UpdateLaser(hitPoint);
-                            UpdateReticle(hitPoint);
+                    //if (isDecoyBaseline)
+                    //{
+                    //    if (Physics.Raycast(controller.transform.position, controller.transform.forward, out hit, 200, pointingMask))
+                    //    {
+                    //        hitPoint = hit.point;
+                    //        UpdateLaser(hitPoint);
+                    //        UpdateReticle(hitPoint);
 
-                            if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
-                            {
-                                // record data
-                                responsePos = hitPoint;
-                                endTimeStamp = currentTime;
-                                AddData();
+                    //        if (OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.RTouch))
+                    //        {
+                    //            // record data
+                    //            responsePos = hitPoint;
+                    //            endTimeStamp = currentTime;
+                    //            AddData();
 
-                                if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); 
+                    //            if (buildFor == BuildFor.Practice) StartCoroutine(ShowAns()); 
 
-                                // prepare the next target
-                                if (pairCounter == 0)
-                                {
-                                    beginTimeStamp = currentTime;
-                                    decoy_firstBaselineResponse = responsePos;
-                                }
-                                else
-                                {
-                                    decoy_secondBaselineResponse = responsePos;
-                                }
-                                pairCounter += 1;
+                    //            // prepare the next target
+                    //            if (pairCounter == 0)
+                    //            {
+                    //                beginTimeStamp = currentTime;
+                    //                decoy_firstBaselineResponse = responsePos;
+                    //            }
+                    //            else
+                    //            {
+                    //                decoy_secondBaselineResponse = responsePos;
+                    //            }
+                    //            pairCounter += 1;
                             
-                                if (pairCounter == 2)
-                                {
-                                    // reset variables
-                                    isDecoyBaseline = false;
-                                    DisablePointing();
-                                    StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
-                                    pairCounter = 0;
+                    //            if (pairCounter == 2)
+                    //            {
+                    //                // reset variables
+                    //                isDecoyBaseline = false;
+                    //                DisablePointing();
+                    //                StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                    //                pairCounter = 0;
 
-                                    StartCoroutine(ShowRotationCue(endTimeStamp, whichDirection, rotationAngleList[decoyNum]));
-                                }
-                            }
-                        }
-                        else
-                        {
-                            DisablePointing();
-                            if (reticle != null) reticle.position = reticleGameObjects.transform.position;
-                        }
-                    }
+                    //                StartCoroutine(ShowRotationCue(endTimeStamp, whichDirection, rotationAngleList[decoyNum]));
+                    //            }
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        DisablePointing();
+                    //        if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                    //    }
+                    //}
 
                     if (isDecoyTesting)
                     {
@@ -374,7 +383,7 @@ public class ExpController : MonoBehaviour
                                     // reset variables
                                     isDecoyTesting = false;
                                     DisablePointing();
-                                    StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                                    StartCoroutine(RemoveResponse((buildFor == BuildFor.Practice) ? 1f : 0f)); // practice 1s, formal study 0s
                                     pairCounter = 0;
                                     decoyNum += 1;
                                     
@@ -393,6 +402,17 @@ public class ExpController : MonoBehaviour
                         {
                             DisablePointing();
                             if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                        }
+
+
+
+                        if (pairCounter == 0 && OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
+                        {
+                            Debug.LogWarning("Reset this decory trial");
+                            isDecoyTesting = false;
+                            DisablePointing();
+                            StartCoroutine(RemoveResponse(0f)); // practice 1s, formal study 0s
+                            StartCoroutine(RestartDecoyTrial(currentTime));
                         }
                     }
                 }
@@ -431,7 +451,7 @@ public class ExpController : MonoBehaviour
                                 // reset variables
                                 isTestingMeasure = false;
                                 DisablePointing();
-                                StartCoroutine(RemoveResponse()); // practice 1s, formal study 0s
+                                StartCoroutine(RemoveResponse((buildFor == BuildFor.Practice) ? 1f : 0f)); // practice 1s, formal study 0s
                                 pairCounter = 0;
                                 this.transform.rotation = Quaternion.Euler(0, 0, 0);
                                 
@@ -480,6 +500,15 @@ public class ExpController : MonoBehaviour
                     {
                         DisablePointing();
                         if (reticle != null) reticle.position = reticleGameObjects.transform.position;
+                    }
+
+                    if (pairCounter == 0 && OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
+                    {
+                        Debug.LogWarning("Reset this decory trial");
+                        DisablePointing();
+                        StartCoroutine(RemoveResponse(0f)); // practice 1s, formal study 0s
+                        isTrialRunning = false;
+                        StartTrialPanel.SetActive(true);
                     }
                 }
             }
@@ -584,6 +613,9 @@ public class ExpController : MonoBehaviour
         {
             currentPhyTargetsLayout = PhyTargetsLayouts.D;
         }
+
+        if (buildFor == BuildFor.Practice) currentPhyTargetsLayout = PhyTargetsLayouts.Pracitce;
+
         Debug.LogWarning("The current layout of physical targets is: " + currentPhyTargetsLayout.ToString());
     }
 
@@ -629,10 +661,10 @@ public class ExpController : MonoBehaviour
 
         // balance direction
         int rowNum = 0;
-        if (currentPhyTargetsLayout == PhyTargetsLayouts.A) rowNum = 0;
+        if (currentPhyTargetsLayout == PhyTargetsLayouts.A || currentPhyTargetsLayout == PhyTargetsLayouts.Pracitce) rowNum = 0;
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.B) rowNum = 1;
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.C) rowNum = 2;
-        else rowNum = 3;
+        else if (currentPhyTargetsLayout == PhyTargetsLayouts.D) rowNum = 3;
 
         if (currentRotation == SelfRotation.rotate)
         {
@@ -736,9 +768,8 @@ public class ExpController : MonoBehaviour
         reticle.position = hitPoint;
     }
 
-    private IEnumerator RemoveResponse()
+    private IEnumerator RemoveResponse(float duration)
     {
-        float duration = (buildFor == BuildFor.Practice) ? 1f : 0f;
         yield return new WaitForSeconds(duration);
         dottedReticle.transform.position = reticleGameObjects.transform.position;
         stripesReticle.transform.position = reticleGameObjects.transform.position;
@@ -784,10 +815,14 @@ public class ExpController : MonoBehaviour
         beginTimeStamp = currentTime;
         pointingIndicator.Play();
         laser.SetActive(true);
-        if (currentTarget == Targets.virtualTarget)
-            CheckBaselinePerformance(virtualTargetList, firstBaselineResponse, secondBaselineResponse);
-        else
-            CheckBaselinePerformance(physicalTargetList, firstBaselineResponse, secondBaselineResponse);
+
+        // remove baseline
+        //if (currentTarget == Targets.virtualTarget)
+        //    CheckBaselinePerformanceForTestingOrder(virtualTargetList, firstBaselineResponse, secondBaselineResponse);
+        //else
+        //    CheckBaselinePerformanceForTestingOrder(physicalTargetList, firstBaselineResponse, secondBaselineResponse);
+        //
+
         isTestingMeasure = true;
 
         yield return 0;
@@ -818,6 +853,37 @@ public class ExpController : MonoBehaviour
         targetB.transform.position = posB;
     }
 
+    private void InitializeBlueGreenVirtualTargets()
+    {
+        blueVirtualTarget.SetActive(true);
+        greenVirtualTarget.SetActive(true);
+        if (currentPhyTargetsLayout == PhyTargetsLayouts.A)
+        {
+            blueVirtualTarget.transform.position = new Vector3(-0.87f, 0, 1.5f); // tan 30
+            greenVirtualTarget.transform.position = new Vector3(-0.67f, 0, 2.5f);  // tan 15
+        }
+        else if (currentPhyTargetsLayout == PhyTargetsLayouts.B)
+        {
+            blueVirtualTarget.transform.position = new Vector3(-0.2f, 0, 2.5f);
+            greenVirtualTarget.transform.position = new Vector3(0.8f, 0, 2.5f);
+        }
+        else if (currentPhyTargetsLayout == PhyTargetsLayouts.C)
+        {
+            blueVirtualTarget.transform.position = new Vector3(0.3f, 0, 1.5f);
+            greenVirtualTarget.transform.position = new Vector3(-0.7f, 0, 1.5f);
+        }
+        else if (currentPhyTargetsLayout == PhyTargetsLayouts.D)
+        {
+            blueVirtualTarget.transform.position = new Vector3(0.67f, 0, 2.5f); // tan 15
+            greenVirtualTarget.transform.position = new Vector3(1.5f, 0, 1.5f); // tan 45
+        }
+        else 
+        {
+            blueVirtualTarget.transform.position = new Vector3(0.75f, 0, 1.5f); 
+            greenVirtualTarget.transform.position = new Vector3(-0.75f, 0, 1.5f); 
+        }
+    }
+
     private void InitializePhysicalTargets()
     {
         // note: four layout might need to be different?
@@ -838,10 +904,15 @@ public class ExpController : MonoBehaviour
             bluePhysicalTarget.transform.position  = new Vector3( 0.3f, 0, 1.5f);
             greenPhysicalTarget.transform.position = new Vector3(-0.7f, 0, 1.5f);
         }
-        else
+        else if (currentPhyTargetsLayout == PhyTargetsLayouts.D)
         {
             bluePhysicalTarget.transform.position  = new Vector3(0.67f, 0, 2.5f); // tan 15
             greenPhysicalTarget.transform.position = new Vector3( 1.5f, 0, 1.5f); // tan 45
+        }
+        else
+        {
+            bluePhysicalTarget.transform.position = new Vector3(0.75f, 0, 1.5f); 
+            greenPhysicalTarget.transform.position = new Vector3(-0.75f, 0, 1.5f); 
         }
         bluePhysicalTarget.SetActive(false);
         greenPhysicalTarget.SetActive(false);
@@ -850,9 +921,15 @@ public class ExpController : MonoBehaviour
     private IEnumerator ShowTargetsAndRetention(float showTimeStamp = 7f, float retentionTimeStamp = 12f)
 	{
         currentTime = 0.0f;
+        mountains.SetActive(false);
 
         // show a target
-        if (currentTarget == Targets.virtualTarget) InitializeVirtualTargets(blueVirtualTarget, greenVirtualTarget);
+        if (currentTarget == Targets.virtualTarget)
+        {
+            //InitializeVirtualTargets(blueVirtualTarget, greenVirtualTarget);
+            InitializeBlueGreenVirtualTargets();
+            lightingControl.lightsOff = true;
+        }
         else
         {
             Debug.LogWarning("Passthorugh gogogo");
@@ -872,6 +949,7 @@ public class ExpController : MonoBehaviour
         {
             blueVirtualTarget.SetActive(false);
             greenVirtualTarget.SetActive(false);
+            lightingControl.lightsOn = true;
         }
         else
         {
@@ -883,13 +961,21 @@ public class ExpController : MonoBehaviour
 
         yield return new WaitUntil(() => currentTime > retentionTimeStamp);
 
-        // prepare for the pointing task
+        // show mountains after the retention
+        mountains.SetActive(true);
+
+        //// prepare for the pointing task
         beginTimeStamp = currentTime;
         if (currentTarget == Targets.virtualTarget) Helpers.Shuffle(virtualTargetList);
         else Helpers.Shuffle(physicalTargetList);
-        pointingIndicator.Play();
-        laser.SetActive(true);
-        isBaselineMeasure = true;
+
+        // since we remove the baseline measure. We will continue the decoy trial from here.
+        //pointingIndicator.Play();
+        //laser.SetActive(true);
+        //isBaselineMeasure = true;
+        isDecoyRunning = true;
+        StartCoroutine(ShowDecoyTargetsAndRetention(currentTime));
+
         yield return 0;
     }
 
@@ -907,17 +993,38 @@ public class ExpController : MonoBehaviour
         }
 
         yield return new WaitUntil(() => currentTime > callTimeStamp + 7f);
+        // retention for the decoy trial
         dottedVirtualTarget.SetActive(false);
         stripesVirtualTarget.SetActive(false);
+
         yield return new WaitUntil(() => currentTime > callTimeStamp + 12f);
-        // prepare for the pointing task
-        beginTimeStamp = currentTime;
+        //// prepare for the pointing task
+        //beginTimeStamp = currentTime;
         Helpers.Shuffle(decoyTargetList);
-        pointingIndicator.Play();
-        laser.SetActive(true);
-        isDecoyBaseline = true;
+        //pointingIndicator.Play();
+        //laser.SetActive(true);
+        //isDecoyBaseline = true;
+
+        StartCoroutine(ShowRotationCue(currentTime, whichDirection, rotationAngleList[decoyNum]));
         yield return 0;
     }
+
+    private IEnumerator RestartDecoyTrial(float callTimeStamp)
+    {
+        dottedVirtualTarget.SetActive(true);
+        stripesVirtualTarget.SetActive(true);
+
+        yield return new WaitUntil(() => currentTime > callTimeStamp + 7f);
+        // retention for the decoy trial
+        dottedVirtualTarget.SetActive(false);
+        stripesVirtualTarget.SetActive(false);
+
+        yield return new WaitUntil(() => currentTime > callTimeStamp + 12f);
+        Helpers.Shuffle(decoyTargetList);
+        StartCoroutine(ShowRotationCue(currentTime, whichDirection, rotationAngleList[decoyNum]));
+        yield return 0;
+    }
+
 
     private IEnumerator ShowRotationCue(float callTimeStamp, int rotateDirection, float rotateAmount = 0f)
     {
@@ -946,13 +1053,13 @@ public class ExpController : MonoBehaviour
         pointingIndicator.Play();
         laser.SetActive(true);
 
-        CheckBaselinePerformance(decoyTargetList, decoy_firstBaselineResponse, decoy_secondBaselineResponse);
+        //CheckBaselinePerformanceForTestingOrder(decoyTargetList, decoy_firstBaselineResponse, decoy_secondBaselineResponse);
 
         isDecoyTesting = true;
         yield return 0;
     }
 
-    private void CheckBaselinePerformance(List<GameObject> list, Vector3 firstResponse, Vector3 secondResponse)
+    private void CheckBaselinePerformanceForTestingOrder(List<GameObject> list, Vector3 firstResponse, Vector3 secondResponse)
     {
         float firstDistError = Vector3.Distance(list[0].transform.position, firstResponse);
         float secondDistError = Vector3.Distance(list[1].transform.position, secondResponse);
@@ -993,7 +1100,25 @@ public class ExpController : MonoBehaviour
             "AnsName"                       + "," +
             "ControllerPos_X"               + "," + 
             "ControllerPos_Y"               + "," + 
-            "ControllerPoss_Z"              + "\n"); 
+            "ControllerPoss_Z"              + "," +
+            "BlueVirtual_X" + "," +
+            "BlueVirtual_Z" + "," +
+
+            "GreenVirtual_X" + "," +
+            "GreenVirtual_Z" + "," +
+
+            "BluePhysical_X" + "," +
+            "BluePhysical_Z" + "," +
+
+            "GreenPhysical_X" + "," +
+            "GreenPhysical_Z" + "," +
+
+            "Dotted_X" + "," +
+            "Dotted_Z" + "," +
+
+            "Striped_X" + "," +
+            "Striped_Z" +
+            "\n"); 
     }
 
     private IEnumerator WriteDataList()
@@ -1089,7 +1214,10 @@ public class ExpController : MonoBehaviour
             currentPhyTargetsLayout.ToString(), currentCondition.ToString(), currentTarget.ToString(), pairCounter,
             currentRotation.ToString(), whichDirection, decoyAmountThisTrial, decoyNum, rotationAngleList[decoyNum],
             isBaselineMeasure, isTestingMeasure, isDecoyBaseline, isDecoyTesting, beginTimeStamp, endTimeStamp, 
-            responsePos, groundTruth.transform.position, groundTruth.name, controller.transform.position));
+            responsePos, groundTruth.transform.position, groundTruth.name, controller.transform.position,
+            blueVirtualTarget.transform.position, greenVirtualTarget.transform.position,
+            bluePhysicalTarget.transform.position, greenPhysicalTarget.transform.position,
+            dottedVirtualTarget.transform.position, stripesVirtualTarget.transform.position));
 
         PointingData data = dataList[0];
         
@@ -1122,7 +1250,25 @@ public class ExpController : MonoBehaviour
                 data.groundTruthName                       + "," +
                 data.controllerPos.x.ToString("F6")        + "," +
                 data.controllerPos.y.ToString("F6")        + "," +
-                data.controllerPos.z.ToString("F6")        + "\n"
+                data.controllerPos.z.ToString("F6")        + "," +
+
+                data.blueVirtualTargetPos.x.ToString("F6") + "," +
+                data.blueVirtualTargetPos.z.ToString("F6") + "," +
+
+                data.greenVirtualTargetPos.x.ToString("F6") + "," +
+                data.greenVirtualTargetPos.z.ToString("F6") + "," +
+
+                data.bluePhysicalTargetPos.x.ToString("F6") + "," +
+                data.bluePhysicalTargetPos.z.ToString("F6") + "," +
+
+                data.greenPhysicalTargetPos.x.ToString("F6") + "," +
+                data.greenPhysicalTargetPos.z.ToString("F6") + "," +
+
+                data.dottedTargetPos.x.ToString("F6") + "," +
+                data.dottedTargetPos.z.ToString("F6") + "," +
+
+                data.stripedTargetPos.x.ToString("F6") + "," +
+                data.stripedTargetPos.z.ToString("F6") + "\n"
             );
 
         dataList.RemoveAt(0);
@@ -1154,7 +1300,14 @@ public class ExpController : MonoBehaviour
             "ResponsePos: " +           responsePos.ToString("F6")                              + ", " +
             "AnsPos: " +                groundTruth.transform.position.ToString("F6")           + ", " +
             "TargetName: " +            groundTruth.name                                        + ", " +
-            "ControllerPos: " +         controller.transform.position.ToString("F6")            + "\n"); 
+            "ControllerPos: " +         controller.transform.position.ToString("F6")            + ", " +
+            "blueVTargaet: " +          blueVirtualTarget.transform.position.ToString("F6")     + ", " +
+            "greenVTargaet: " +         greenVirtualTarget.transform.position.ToString("F6")    + ", " +
+            "bluePTargaet: " +          bluePhysicalTarget.transform.position.ToString("F6")    + ", " +
+            "greenPTargaet: " +         greenPhysicalTarget.transform.position.ToString("F6")   + ", " +
+            "dottedTarget: " +          dottedVirtualTarget.transform.position.ToString("F6")   + ", " +
+            "stripedTarget: " +         stripesVirtualTarget.transform.position.ToString("F6")  + ", " +
+            "\n"); 
     }
 
     public struct PointingData
@@ -1184,12 +1337,19 @@ public class ExpController : MonoBehaviour
         public Vector3 groundTruthPos;
         public string groundTruthName;
         public Vector3 controllerPos;
+        public Vector3 blueVirtualTargetPos;
+        public Vector3 greenVirtualTargetPos;
+        public Vector3 bluePhysicalTargetPos;
+        public Vector3 greenPhysicalTargetPos;
+        public Vector3 dottedTargetPos;
+        public Vector3 stripedTargetPos;
 
         public PointingData(int participantID, int trialID, bool isPractice, int layoutBlockNum, int conditionBlockNum, int trialNum,
                             string currentPhyTargetsLayout, string currentCondition, string currentTarget, int pairCounter,
                             string currentRotation, int whichDirection, int decoyAmountThisTrial, int decoyNum, int rotationAmount,
                             bool isBaselineMeasure, bool isTestingMeasure, bool isDecoyBaseline, bool isDecoyTesting,
-                            float beginTime, float endTime, Vector3 responsePos, Vector3 groundTruthPos, string groundTruthName, Vector3 controllerPos)
+                            float beginTime, float endTime, Vector3 responsePos, Vector3 groundTruthPos, string groundTruthName, Vector3 controllerPos,
+                            Vector3 blueVirtualTargetPos, Vector3 greenVirtualTargetPos, Vector3 bluePhysicalTargetPos, Vector3 greenPhysicalTargetPos, Vector3 dottedTargetPos, Vector3 stripedTargetPos)
         {
             this.participantID = participantID;
             this.trialID = trialID;
@@ -1216,6 +1376,12 @@ public class ExpController : MonoBehaviour
             this.groundTruthPos = groundTruthPos;
             this.groundTruthName = groundTruthName;
             this.controllerPos = controllerPos;
+            this.blueVirtualTargetPos = blueVirtualTargetPos;
+            this.greenVirtualTargetPos = greenVirtualTargetPos;
+            this.bluePhysicalTargetPos = bluePhysicalTargetPos;
+            this.greenPhysicalTargetPos = greenPhysicalTargetPos;
+            this.dottedTargetPos = dottedTargetPos;
+            this.stripedTargetPos = stripedTargetPos;
         }
     }
 }
