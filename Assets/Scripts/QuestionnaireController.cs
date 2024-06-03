@@ -65,7 +65,7 @@ public class QuestionnaireController : MonoBehaviour
         currentScale = 3;
         currentScaleGO = scales[currentScale-1];
         smallInstruction.text = "";
-        largeInstruction.text = "Press A to Start.";
+        largeInstruction.text = "Press A to start.";
         isAllowedCheck = false;
         
         foreach (var s in scales) s.SetActive(false);
@@ -84,7 +84,7 @@ public class QuestionnaireController : MonoBehaviour
                     scale.SetActive(true);
                     currentScaleGO.SetActive(true);
                     smallInstruction.text = (currentItem + 1).ToString("F0") + "/8";
-                    largeInstruction.text = "Use Left/Right to select a response and press A to confrim.";
+                    largeInstruction.text = "Use Left/Right to select and press A to confirm.";
                 }
             }
         }
@@ -146,8 +146,8 @@ public class QuestionnaireController : MonoBehaviour
                     }
                     else 
                     {
-                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.\n" + currentItem.ToString("F0") + "/8";
-                        largeInstruction.text = "Use Up/Down to check your responses and Press B to end the test.";
+                        smallInstruction.text = "Use Left/Right to select and press A to confirm.\n" + currentItem.ToString("F0") + "/8";
+                        largeInstruction.text = "Use Up/Down to check and press B to complete.";
                         isAllowedCheck = true;
                         currentItem = 7;
                     }
@@ -162,7 +162,7 @@ public class QuestionnaireController : MonoBehaviour
                     if (currentItem > 0)
                     {
                         currentItem -= 1;
-                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.\n" + (currentItem + 1).ToString("F0") + "/8";
+                        smallInstruction.text = "Use Left/Right to select and press A to confirm.\n" + (currentItem + 1).ToString("F0") + "/8";
                         mainText.text = items[currentItem].item;
                         foreach (var s in scales) s.SetActive(false);
                         scales[responses[currentItem]-1].SetActive(true);
@@ -175,7 +175,7 @@ public class QuestionnaireController : MonoBehaviour
                     if (currentItem < 7)
                     {
                         currentItem += 1;
-                        smallInstruction.text = "Use Left/Right to select a response and press A to confrim.\n" + (currentItem + 1).ToString("F0") + "/8";
+                        smallInstruction.text = "Use Left/Right to select and press A to confirm.\n" + (currentItem + 1).ToString("F0") + "/8";
                         mainText.text = items[currentItem].item;
                         foreach (var s in scales) s.SetActive(false);
                         scales[responses[currentItem]-1].SetActive(true);
@@ -193,7 +193,7 @@ public class QuestionnaireController : MonoBehaviour
                     scale.SetActive(false);
                     smallInstruction.text = "";
                     largeInstruction.text = "";
-                    mainText.text = "This is the end of the study.\nPlease contact the experimentor, thanks!";
+                    mainText.text = "This is the end of the study.\nPlease contact the experimenter, thanks!";
                 }
             }
         }

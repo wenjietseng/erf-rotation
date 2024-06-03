@@ -76,6 +76,7 @@ public class ExpController : MonoBehaviour
     float restingTime;
     int pairCounter = 0;
     public static bool isStartTrialPanelTriggered;
+    int rowNum;
 
     [Header("Stimuli and Materials")]
     public GameObject mountains;
@@ -504,11 +505,16 @@ public class ExpController : MonoBehaviour
 
                     if (pairCounter == 0 && OVRInput.GetUp(OVRInput.Button.One, OVRInput.Controller.LTouch))
                     {
-                        Debug.LogWarning("Reset this decory trial");
+                        Debug.LogWarning("Reset this blue/green trial");
+
+                        isTestingMeasure = false;
+                        isTrialRunning = false;
                         DisablePointing();
                         StartCoroutine(RemoveResponse(0f)); // practice 1s, formal study 0s
-                        isTrialRunning = false;
+                        this.transform.rotation = Quaternion.Euler(0, 0, 0);
+                        if (currentRotation == SelfRotation.rotate) directionTable[rowNum, whichDirection] += 1;
                         StartTrialPanel.SetActive(true);
+
                     }
                 }
             }
@@ -660,7 +666,7 @@ public class ExpController : MonoBehaviour
         Helpers.Shuffle(rotationAngleList);
 
         // balance direction
-        int rowNum = 0;
+        rowNum = 0;
         if (currentPhyTargetsLayout == PhyTargetsLayouts.A || currentPhyTargetsLayout == PhyTargetsLayouts.Pracitce) rowNum = 0;
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.B) rowNum = 1;
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.C) rowNum = 2;
