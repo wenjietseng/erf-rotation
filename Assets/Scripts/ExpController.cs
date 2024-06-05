@@ -512,8 +512,8 @@ public class ExpController : MonoBehaviour
                         DisablePointing();
                         StartCoroutine(RemoveResponse(0f)); // practice 1s, formal study 0s
                         this.transform.rotation = Quaternion.Euler(0, 0, 0);
-                        if (currentRotation == SelfRotation.rotate) directionTable[rowNum, whichDirection] += 1;
-                        StartTrialPanel.SetActive(true);
+                        if (currentRotation == SelfRotation.rotate) directionTable[rowNum, whichDirection] -= 1; // check table behavior, it seems this one messed up the study.
+                        StartTrialPanel.SetActive(true); 
 
                     }
                 }
