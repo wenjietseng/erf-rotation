@@ -191,6 +191,7 @@ public class ExpController : MonoBehaviour
     void Update()
     {
 
+        ///// Checkpoint 1: if the table is correct
         //if (Input.GetKeyDown(KeyCode.Q))
         //{
         //    if (trialNum < 3)
@@ -472,8 +473,8 @@ public class ExpController : MonoBehaviour
                                         PreparePhyTargetsLayout();
                                         InitializePhysicalTargets();                                
                                         StartTrialPanel.SetActive(true);
-                                        instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
-                                            "'\nand wait for the experimenter's instruction.";
+                                        instructions.text = "Please tell the experimenter: Layout '" + currentPhyTargetsLayout.ToString() +
+                                            "'\nand wait for the next instruction.";
                                         restingTime = restingDuration;
                                         StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
                                     }
@@ -987,6 +988,8 @@ public class ExpController : MonoBehaviour
 
     private IEnumerator ShowDecoyTargetsAndRetention(float callTimeStamp)
     {
+        // Checkpoint 2: decoys rotation... We forget to reset the rotation of decoys after the participant reset.
+        // reproduce error: reset during the testing meaure of the decoy trial (rotate)
         decoys.transform.rotation = Quaternion.identity; // reset decoys
         InitializeVirtualTargets(dottedVirtualTarget, stripesVirtualTarget);
         float decoysRotateAmount = 0f;
@@ -1034,6 +1037,9 @@ public class ExpController : MonoBehaviour
 
     private IEnumerator ShowRotationCue(float callTimeStamp, int rotateDirection, float rotateAmount = 0f)
     {
+
+        // check point 3: rotation cues
+
         // Debug.LogWarning("Rotation is: " + rotateDirection + ", " + rotateAmount);
         rotationCue.SetActive(true);
         rotationCue.GetComponent<SimpleRotationCue>().visualCollider.SetActive(true);
