@@ -415,6 +415,7 @@ public class ExpController : MonoBehaviour
                             DisablePointing();
                             StartCoroutine(RemoveResponse(0f)); // practice 1s, formal study 0s
                             StartCoroutine(RestartDecoyTrial(currentTime));
+                            // reset decoys in RestartDecoyTrial()
                         }
                     }
                 }
@@ -513,6 +514,7 @@ public class ExpController : MonoBehaviour
                         DisablePointing();
                         StartCoroutine(RemoveResponse(0f)); // practice 1s, formal study 0s
                         this.transform.rotation = Quaternion.Euler(0, 0, 0);
+                        decoys.transform.rotation = Quaternion.identity; // reset decoys
                         if (currentRotation == SelfRotation.rotate) directionTable[rowNum, whichDirection] -= 1; // check table behavior, it seems this one messed up the study.
                         StartTrialPanel.SetActive(true); 
 
@@ -1020,6 +1022,21 @@ public class ExpController : MonoBehaviour
 
     private IEnumerator RestartDecoyTrial(float callTimeStamp)
     {
+        // reset orientation by reverting the rotateAmount from this.transform 
+        if (whichDirection != -1)
+        {
+            if (whichDirection % 2 == 0)
+            {
+                decoys.transform.rotation = Quaternion.Euler(0, this.transform.rotation.eulerAngles.y + rotationAngleList[decoyNum], 0);
+            }
+            else
+            {
+                decoys.transform.rotation = Quaternion.Euler(0, this.transform.rotation.eulerAngles.y - rotationAngleList[decoyNum], 0);
+            }
+        }
+
+
+
         dottedVirtualTarget.SetActive(true);
         stripesVirtualTarget.SetActive(true);
 
@@ -1030,7 +1047,21 @@ public class ExpController : MonoBehaviour
 
         yield return new WaitUntil(() => currentTime > callTimeStamp + 12f);
         Helpers.Shuffle(decoyTargetList);
-        StartCoroutine(ShowRotationCue(currentTime, whichDirection, rotationAngleList[decoyNum]));
+        StartCoroutine(ShowRotationCue(currentTime, whichDirection, 0f)); // set as zero because this was already rotated ..
+
+        // make sure we play the sound
+        if (whichDirection != -1)
+        {
+            if (whichDirection % 2 == 0)
+            {
+                if (rotationAngleList[decoyNum] != 0) turnLeftSound.Play();
+            }
+            else
+            {
+                if (rotationAngleList[decoyNum] != 0) turnRightSound.Play();
+            }
+        }
+
         yield return 0;
     }
 
