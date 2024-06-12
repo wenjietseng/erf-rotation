@@ -11,7 +11,7 @@ output: beamer_presentation
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-source(file = "pilot.R")
+source(file = "erf-pilot.R")
 ```
 
 ## Current Setup

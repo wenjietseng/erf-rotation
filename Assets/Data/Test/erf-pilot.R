@@ -11,7 +11,7 @@
 # - move TargetName to the other factor variables
 
 ## get pilot data
-setwd("Documents/erf-rotation/Assets/Data/Test/")
+# setwd("Documents/erf-rotation/Assets/Data/Test/")
 
 ## load packages
 library(Rmisc) # plyr and dplyr imcompatible. Need to look into code implementation
