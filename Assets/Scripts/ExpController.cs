@@ -474,8 +474,11 @@ public class ExpController : MonoBehaviour
                                         PreparePhyTargetsLayout();
                                         InitializePhysicalTargets();                                
                                         StartTrialPanel.SetActive(true);
-                                        instructions.text = "Please tell the experimenter: Layout '" + currentPhyTargetsLayout.ToString() +
-                                            "'\nand wait for the next instruction.";
+                                        if (buildFor == BuildFor.Practice)
+                                            instructions.text = "Press Button B to start the formal study after countdown.";
+                                        else
+                                            instructions.text = "Please tell the experimenter: Layout '" + currentPhyTargetsLayout.ToString() +
+                                                "'\nand wait for the next instruction.";
                                         restingTime = restingDuration;
                                         StartTrialPanel.GetComponent<BoxCollider>().enabled = false;
                                     }
@@ -569,8 +572,7 @@ public class ExpController : MonoBehaviour
         PreparePhyTargetsLayout();
         InitializePhysicalTargets();                                
         StartTrialPanel.SetActive(true);
-        instructions.text = "Please tell the experimenter it's '" + currentPhyTargetsLayout.ToString() +
-            "'\nand wait for the experimenter's instruction.";
+        //instructions.text = "Press Button B to start the formal study.";
         PrepareCondition();
     }
 
@@ -868,28 +870,28 @@ public class ExpController : MonoBehaviour
         greenVirtualTarget.SetActive(true);
         if (currentPhyTargetsLayout == PhyTargetsLayouts.A)
         {
-            blueVirtualTarget.transform.position = new Vector3(-0.87f, 0, 1.5f); // tan 30
-            greenVirtualTarget.transform.position = new Vector3(-0.67f, 0, 2.5f);  // tan 15
+            blueVirtualTarget.transform.localPosition = new Vector3(-0.87f, 0, 1.5f); // tan 30
+            greenVirtualTarget.transform.localPosition = new Vector3(-0.67f, 0, 2.5f);  // tan 15
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.B)
         {
-            blueVirtualTarget.transform.position = new Vector3(-0.2f, 0, 2.5f);
-            greenVirtualTarget.transform.position = new Vector3(0.8f, 0, 2.5f);
+            blueVirtualTarget.transform.localPosition = new Vector3(-0.2f, 0, 2.5f);
+            greenVirtualTarget.transform.localPosition = new Vector3(0.8f, 0, 2.5f);
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.C)
         {
-            blueVirtualTarget.transform.position = new Vector3(0.3f, 0, 1.5f);
-            greenVirtualTarget.transform.position = new Vector3(-0.7f, 0, 1.5f);
+            blueVirtualTarget.transform.localPosition = new Vector3(0.3f, 0, 1.5f);
+            greenVirtualTarget.transform.localPosition = new Vector3(-0.7f, 0, 1.5f);
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.D)
         {
-            blueVirtualTarget.transform.position = new Vector3(0.67f, 0, 2.5f); // tan 15
-            greenVirtualTarget.transform.position = new Vector3(1.5f, 0, 1.5f); // tan 45
+            blueVirtualTarget.transform.localPosition = new Vector3(0.67f, 0, 2.5f); // tan 15
+            greenVirtualTarget.transform.localPosition = new Vector3(1.5f, 0, 1.5f); // tan 45
         }
         else 
         {
-            blueVirtualTarget.transform.position = new Vector3(0.75f, 0, 1.5f); 
-            greenVirtualTarget.transform.position = new Vector3(-0.75f, 0, 1.5f); 
+            blueVirtualTarget.transform.localPosition = new Vector3(0.75f, 0, 1.5f); 
+            greenVirtualTarget.transform.localPosition = new Vector3(-0.75f, 0, 1.5f); 
         }
     }
 
@@ -900,28 +902,28 @@ public class ExpController : MonoBehaviour
         greenPhysicalTarget.SetActive(true);
         if (currentPhyTargetsLayout == PhyTargetsLayouts.A)
         {
-            bluePhysicalTarget.transform.position  = new Vector3(-0.87f, 0, 1.5f); // tan 30
-            greenPhysicalTarget.transform.position = new Vector3(-0.67f, 0, 2.5f);  // tan 15
+            bluePhysicalTarget.transform.localPosition = new Vector3(-0.87f, 0, 1.5f); // tan 30
+            greenPhysicalTarget.transform.localPosition = new Vector3(-0.67f, 0, 2.5f);  // tan 15
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.B)
         {
-            bluePhysicalTarget.transform.position  = new Vector3(-0.2f, 0, 2.5f);
-            greenPhysicalTarget.transform.position = new Vector3( 0.8f, 0, 2.5f);
+            bluePhysicalTarget.transform.localPosition = new Vector3(-0.2f, 0, 2.5f);
+            greenPhysicalTarget.transform.localPosition = new Vector3( 0.8f, 0, 2.5f);
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.C)
         {
-            bluePhysicalTarget.transform.position  = new Vector3( 0.3f, 0, 1.5f);
-            greenPhysicalTarget.transform.position = new Vector3(-0.7f, 0, 1.5f);
+            bluePhysicalTarget.transform.localPosition = new Vector3( 0.3f, 0, 1.5f);
+            greenPhysicalTarget.transform.localPosition = new Vector3(-0.7f, 0, 1.5f);
         }
         else if (currentPhyTargetsLayout == PhyTargetsLayouts.D)
         {
-            bluePhysicalTarget.transform.position  = new Vector3(0.67f, 0, 2.5f); // tan 15
-            greenPhysicalTarget.transform.position = new Vector3( 1.5f, 0, 1.5f); // tan 45
+            bluePhysicalTarget.transform.localPosition = new Vector3(0.67f, 0, 2.5f); // tan 15
+            greenPhysicalTarget.transform.localPosition = new Vector3( 1.5f, 0, 1.5f); // tan 45
         }
         else
         {
-            bluePhysicalTarget.transform.position = new Vector3(0.75f, 0, 1.5f); 
-            greenPhysicalTarget.transform.position = new Vector3(-0.75f, 0, 1.5f); 
+            bluePhysicalTarget.transform.localPosition = new Vector3(0.75f, 0, 1.5f); 
+            greenPhysicalTarget.transform.localPosition = new Vector3(-0.75f, 0, 1.5f); 
         }
         bluePhysicalTarget.SetActive(false);
         greenPhysicalTarget.SetActive(false);
