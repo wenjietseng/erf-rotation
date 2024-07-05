@@ -2514,7 +2514,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bbb1b5e8729ffc409e29c96ff58f43b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  disableAlignmentProcess: 0
+  disableAlignmentProcess: 1
   referencePointA: {fileID: 589095014}
   referencePointB: {fileID: 1278244850}
   controller: {fileID: 110943764}

@@ -475,7 +475,7 @@ public class ExpController : MonoBehaviour
                                         InitializePhysicalTargets();                                
                                         StartTrialPanel.SetActive(true);
                                         if (buildFor == BuildFor.Practice)
-                                            instructions.text = "Press Button B to start the formal study after countdown.";
+                                            instructions.text = "The end of practice: press Button B to start the formal study after countdown.";
                                         else
                                             instructions.text = "Please tell the experimenter: Layout '" + currentPhyTargetsLayout.ToString() +
                                                 "'\nand wait for the next instruction.";
