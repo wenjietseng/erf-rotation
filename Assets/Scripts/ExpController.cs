@@ -226,7 +226,7 @@ public class ExpController : MonoBehaviour
 
         int trialIDTemp = conditionBlockNum*4 + trialNum;
 
-        if (Alignment.isCalibrated && trialIDTemp > 3 && buildFor == BuildFor.Practice)
+        if (Alignment.isCalibrated && trialIDTemp > -1 && buildFor == BuildFor.Practice)
         {
             if (OVRInput.GetUp(OVRInput.Button.Two, OVRInput.Controller.RTouch))
             {
